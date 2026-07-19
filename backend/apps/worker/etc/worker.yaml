@@ -1,0 +1,37 @@
+Runtime:
+  Environment: development
+  ServiceName: interviewmaster-worker
+  Database:
+    URL: postgres://interviewmaster:interviewmaster_local_only@localhost:5432/interviewmaster?sslmode=disable
+    MaxConnections: 10
+    MinConnections: 1
+    MaxConnLifetime: 30m
+  Redis:
+    Addr: localhost:6379
+    Password: ""
+    DB: 0
+  ObjectStore:
+    Endpoint: http://localhost:9000
+    Region: us-east-1
+    Bucket: interviewmaster-local
+    AccessKey: interviewmaster
+    SecretKey: interviewmaster_local_only
+    UsePathStyle: true
+  Parser:
+    TikaURL: http://localhost:9998
+    ASRURL: http://localhost:9002
+  Security:
+    JWTSigningKey: development-only-replace-before-production-32chars
+  Telemetry:
+    Enabled: false
+    Endpoint: localhost:4317
+    Insecure: true
+  HTTP:
+    AllowedOrigins:
+      - http://localhost:3000
+Concurrency: 10
+ShutdownTimeout: 30s
+Queues:
+  interactive: 6
+  default: 3
+  heavy: 1

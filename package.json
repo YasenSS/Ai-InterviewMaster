@@ -1,0 +1,12 @@
+{
+  "name": "interviewmaster",
+  "private": true,
+  "packageManager": "pnpm@11.9.0",
+  "scripts": {
+    "dev:web": "pnpm --dir web dev",
+    "build:web": "pnpm --dir web build",
+    "lint:web": "pnpm --dir web lint",
+    "typecheck:web": "pnpm --dir web typecheck",
+    "test:web": "pnpm --dir web test"
+  }
+}

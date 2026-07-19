@@ -1,0 +1,323 @@
+syntax = "v1"
+
+info (
+	title:   "InterviewMaster API"
+	desc:    "InterviewMaster public HTTP API"
+	author:  "InterviewMaster Team"
+	version: "v1"
+)
+
+type HealthResponse {
+	Status    string `json:"status"`
+	Service   string `json:"service"`
+	Version   string `json:"version"`
+	Timestamp string `json:"timestamp"`
+}
+
+type ReadinessResponse {
+	Status    string `json:"status"`
+	Database  string `json:"database"`
+	Redis     string `json:"redis"`
+	Timestamp string `json:"timestamp"`
+}
+
+type RegisterRequest {
+	Email       string `json:"email"`
+	Password    string `json:"password"`
+	DisplayName string `json:"display_name"`
+}
+
+type LoginRequest {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type AuthResponse {
+	AccessToken string       `json:"access_token"`
+	TokenType   string       `json:"token_type"`
+	ExpiresIn   int64        `json:"expires_in"`
+	User        UserResponse `json:"user"`
+}
+
+type UserResponse {
+	Id          string `json:"id"`
+	Email       string `json:"email"`
+	DisplayName string `json:"display_name"`
+}
+
+type CreateResumeUploadRequest {
+	Title       string `json:"title"`
+	FileName    string `json:"file_name"`
+	ContentType string `json:"content_type"`
+	SizeBytes   int64  `json:"size_bytes"`
+}
+
+type CreateResumeUploadResponse {
+	ResumeId      string            `json:"resume_id"`
+	VersionId     string            `json:"version_id"`
+	UploadUrl     string            `json:"upload_url"`
+	UploadHeaders map[string]string `json:"upload_headers"`
+	ExpiresAt     string            `json:"expires_at"`
+}
+
+type CompleteResumeUploadResponse {
+	TaskId string `json:"task_id"`
+	Status string `json:"status"`
+}
+
+type ResumePath {
+	Id string `path:"id"`
+}
+
+type CompleteResumeUploadRequest {
+	Id        string `path:"id"`
+	VersionId string `path:"versionId"`
+}
+
+type ResumeResponse {
+	Id        string `json:"id"`
+	Title     string `json:"title"`
+	Status    string `json:"status"`
+	VersionId string `json:"version_id,optional"`
+	FileName  string `json:"file_name,optional"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
+}
+
+type ResumeFactResponse {
+	Type    string      `json:"type"`
+	Key     string      `json:"key"`
+	Value   interface{} `json:"value"`
+	Excerpt string      `json:"excerpt"`
+}
+
+type ResumeDetailResponse {
+	ResumeResponse
+	Facts []ResumeFactResponse `json:"facts"`
+}
+
+type JobDescriptionRequest {
+	Company string `json:"company,optional"`
+	Title   string `json:"title"`
+	Content string `json:"content"`
+}
+
+type JobDescriptionResponse {
+	Id           string   `json:"id"`
+	Company      string   `json:"company,optional"`
+	Title        string   `json:"title"`
+	Content      string   `json:"content"`
+	Capabilities []string `json:"capabilities"`
+	CreatedAt    string   `json:"created_at"`
+	UpdatedAt    string   `json:"updated_at"`
+}
+
+type CreateQuestionSetRequest {
+	ResumeId         string `json:"resume_id"`
+	JobDescriptionId string `json:"job_description_id,optional"`
+	TargetRole       string `json:"target_role,optional"`
+}
+
+type QuestionResponse {
+	Id             string   `json:"id"`
+	Ordinal        int      `json:"ordinal"`
+	Question       string   `json:"question"`
+	Intent         string   `json:"intent"`
+	ExpectedPoints []string `json:"expected_points"`
+	FollowUpHint   string   `json:"follow_up_hint"`
+}
+
+type QuestionSetResponse {
+	Id               string             `json:"id"`
+	ResumeId         string             `json:"resume_id"`
+	JobDescriptionId string             `json:"job_description_id,optional"`
+	TargetRole       string             `json:"target_role,optional"`
+	Questions        []QuestionResponse `json:"questions"`
+	CreatedAt        string             `json:"created_at"`
+}
+
+type CreateInterviewRequest {
+	ResumeId         string `json:"resume_id"`
+	QuestionSetId    string `json:"question_set_id"`
+	JobDescriptionId string `json:"job_description_id,optional"`
+	Title            string `json:"title"`
+}
+
+type AnswerRequest {
+	Answer string `json:"answer"`
+}
+
+type InterviewTurnResponse {
+	Ordinal    int    `json:"ordinal"`
+	Question   string `json:"question"`
+	Answer     string `json:"answer,optional"`
+	AnsweredAt string `json:"answered_at,optional"`
+}
+
+type InterviewSessionResponse {
+	Id             string                  `json:"id"`
+	Title          string                  `json:"title"`
+	Status         string                  `json:"status"`
+	CurrentOrdinal int                     `json:"current_ordinal"`
+	Turns          []InterviewTurnResponse `json:"turns"`
+	CreatedAt      string                  `json:"created_at"`
+}
+
+type InterviewPath {
+	Id string `path:"id"`
+}
+
+type AnswerInterviewRequest {
+	Id     string `path:"id"`
+	Answer string `json:"answer"`
+}
+
+type TurnReportResponse {
+	Ordinal      int      `json:"ordinal"`
+	Score        int      `json:"score"`
+	Critique     string   `json:"critique"`
+	GoldenAnswer string   `json:"golden_answer"`
+	Evidence     []string `json:"evidence"`
+}
+
+type InterviewReportResponse {
+	Id            string               `json:"id"`
+	SessionId     string               `json:"session_id"`
+	OverallScore  int                  `json:"overall_score"`
+	Strengths     []string             `json:"strengths"`
+	Improvements  []string             `json:"improvements"`
+	NextSteps     []string             `json:"next_steps"`
+	QualityPassed bool                 `json:"quality_passed"`
+	Turns         []TurnReportResponse `json:"turns"`
+}
+
+type CompanyIntelRequest {
+	Company string `json:"company"`
+	Role    string `json:"role"`
+}
+
+type CompanyIntelResponse {
+	Company   string   `json:"company"`
+	Role      string   `json:"role"`
+	Topics    []string `json:"topics"`
+	Questions []string `json:"questions"`
+	Freshness string   `json:"freshness"`
+}
+
+type ASRRequest {
+	ObjectKey string `json:"object_key"`
+	Language  string `json:"language,optional"`
+}
+
+type ASRUploadRequest {
+	FileName    string `json:"file_name"`
+	ContentType string `json:"content_type"`
+	SizeBytes   int64  `json:"size_bytes"`
+}
+
+type ASRUploadResponse {
+	ObjectKey string `json:"object_key"`
+	UploadUrl string `json:"upload_url"`
+	ExpiresAt string `json:"expires_at"`
+}
+
+type ASRResponse {
+	TaskId     string `json:"task_id"`
+	Status     string `json:"status"`
+	Transcript string `json:"transcript,optional"`
+}
+
+type TaskPath {
+	Id string `path:"id"`
+}
+
+type TaskResponse {
+	Id       string      `json:"id"`
+	Type     string      `json:"type"`
+	Status   string      `json:"status"`
+	Progress int         `json:"progress"`
+	Error    string      `json:"error,optional"`
+	Result   interface{} `json:"result,optional"`
+}
+
+@server (
+	prefix: /api/v1
+	group:  system
+)
+service InterviewMaster {
+	@doc "Liveness probe"
+	@handler Health
+	get /health returns (HealthResponse)
+
+	@doc "Dependency readiness probe"
+	@handler Ready
+	get /ready returns (ReadinessResponse)
+}
+
+@server (
+	prefix: /api/v1/auth
+	group:  auth
+)
+service InterviewMaster {
+	@handler Register
+	post /register (RegisterRequest) returns (AuthResponse)
+
+	@handler Login
+	post /login (LoginRequest) returns (AuthResponse)
+}
+
+@server (
+	prefix: /api/v1
+	jwt:    Auth
+	group:  workspace
+)
+service InterviewMaster {
+	@handler Me
+	get /me returns (UserResponse)
+
+	@handler CreateResumeUpload
+	post /resumes/uploads (CreateResumeUploadRequest) returns (CreateResumeUploadResponse)
+
+	@handler CompleteResumeUpload
+	post /resumes/:id/versions/:versionId/complete (CompleteResumeUploadRequest) returns (CompleteResumeUploadResponse)
+
+	@handler ListResumes
+	get /resumes returns ([]ResumeResponse)
+
+	@handler GetResume
+	get /resumes/:id (ResumePath) returns (ResumeDetailResponse)
+
+	@handler CreateJobDescription
+	post /job-descriptions (JobDescriptionRequest) returns (JobDescriptionResponse)
+
+	@handler ListJobDescriptions
+	get /job-descriptions returns ([]JobDescriptionResponse)
+
+	@handler CreateQuestionSet
+	post /question-sets (CreateQuestionSetRequest) returns (QuestionSetResponse)
+
+	@handler CreateInterview
+	post /interviews (CreateInterviewRequest) returns (InterviewSessionResponse)
+
+	@handler GetInterview
+	get /interviews/:id (InterviewPath) returns (InterviewSessionResponse)
+
+	@handler AnswerInterview
+	post /interviews/:id/answer (AnswerInterviewRequest) returns (InterviewSessionResponse)
+
+	@handler GetInterviewReport
+	get /interviews/:id/report (InterviewPath) returns (InterviewReportResponse)
+
+	@handler SearchCompanyIntel
+	post /beta/company-intel/search (CompanyIntelRequest) returns (CompanyIntelResponse)
+
+	@handler CreateASRTask
+	post /beta/asr/tasks (ASRRequest) returns (ASRResponse)
+
+	@handler CreateASRUpload
+	post /beta/asr/uploads (ASRUploadRequest) returns (ASRUploadResponse)
+
+	@handler GetTask
+	get /tasks/:id (TaskPath) returns (TaskResponse)
+}
+

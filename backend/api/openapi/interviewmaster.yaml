@@ -1,0 +1,903 @@
+basePath: /
+consumes:
+- application/json
+info:
+  title: InterviewMaster API
+  version: v1
+paths:
+  /api/v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      operationId: authLogin
+      parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            email:
+              type: string
+            password:
+              type: string
+          required:
+          - email
+          - password
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              access_token:
+                type: string
+              expires_in:
+                type: integer
+              token_type:
+                type: string
+              user:
+                properties:
+                  display_name:
+                    type: string
+                  email:
+                    type: string
+                  id:
+                    type: string
+                required:
+                - id
+                - email
+                - display_name
+                type: object
+            type: object
+      schemes:
+      - https
+      summary: Login
+  /api/v1/auth/register:
+    post:
+      consumes:
+      - application/json
+      operationId: authRegister
+      parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            display_name:
+              type: string
+            email:
+              type: string
+            password:
+              type: string
+          required:
+          - email
+          - password
+          - display_name
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              access_token:
+                type: string
+              expires_in:
+                type: integer
+              token_type:
+                type: string
+              user:
+                properties:
+                  display_name:
+                    type: string
+                  email:
+                    type: string
+                  id:
+                    type: string
+                required:
+                - id
+                - email
+                - display_name
+                type: object
+            type: object
+      schemes:
+      - https
+      summary: Register
+  /api/v1/beta/asr/tasks:
+    post:
+      consumes:
+      - application/json
+      operationId: workspaceCreateASRTask
+      parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            language:
+              type: string
+            object_key:
+              type: string
+          required:
+          - object_key
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              status:
+                type: string
+              task_id:
+                type: string
+              transcript:
+                type: string
+            type: object
+      schemes:
+      - https
+      summary: CreateASRTask
+  /api/v1/beta/asr/uploads:
+    post:
+      consumes:
+      - application/json
+      operationId: workspaceCreateASRUpload
+      parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            content_type:
+              type: string
+            file_name:
+              type: string
+            size_bytes:
+              type: integer
+          required:
+          - file_name
+          - content_type
+          - size_bytes
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              expires_at:
+                type: string
+              object_key:
+                type: string
+              upload_url:
+                type: string
+            type: object
+      schemes:
+      - https
+      summary: CreateASRUpload
+  /api/v1/beta/company-intel/search:
+    post:
+      consumes:
+      - application/json
+      operationId: workspaceSearchCompanyIntel
+      parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            company:
+              type: string
+            role:
+              type: string
+          required:
+          - company
+          - role
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              company:
+                type: string
+              freshness:
+                type: string
+              questions:
+                items:
+                  type: string
+                type: array
+              role:
+                type: string
+              topics:
+                items:
+                  type: string
+                type: array
+            type: object
+      schemes:
+      - https
+      summary: SearchCompanyIntel
+  /api/v1/health:
+    get:
+      operationId: systemHealth
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              service:
+                type: string
+              status:
+                type: string
+              timestamp:
+                type: string
+              version:
+                type: string
+            type: object
+      schemes:
+      - https
+      summary: Liveness probe
+  /api/v1/interviews:
+    post:
+      consumes:
+      - application/json
+      operationId: workspaceCreateInterview
+      parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            job_description_id:
+              type: string
+            question_set_id:
+              type: string
+            resume_id:
+              type: string
+            title:
+              type: string
+          required:
+          - resume_id
+          - question_set_id
+          - title
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              created_at:
+                type: string
+              current_ordinal:
+                type: integer
+              id:
+                type: string
+              status:
+                type: string
+              title:
+                type: string
+              turns:
+                items:
+                  properties:
+                    answer:
+                      type: string
+                    answered_at:
+                      type: string
+                    ordinal:
+                      type: integer
+                    question:
+                      type: string
+                  required:
+                  - ordinal
+                  - question
+                  type: object
+                type: array
+            type: object
+      schemes:
+      - https
+      summary: CreateInterview
+  /api/v1/interviews/{id}:
+    get:
+      operationId: workspaceGetInterview
+      parameters:
+      - in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              created_at:
+                type: string
+              current_ordinal:
+                type: integer
+              id:
+                type: string
+              status:
+                type: string
+              title:
+                type: string
+              turns:
+                items:
+                  properties:
+                    answer:
+                      type: string
+                    answered_at:
+                      type: string
+                    ordinal:
+                      type: integer
+                    question:
+                      type: string
+                  required:
+                  - ordinal
+                  - question
+                  type: object
+                type: array
+            type: object
+      schemes:
+      - https
+      summary: GetInterview
+  /api/v1/interviews/{id}/answer:
+    post:
+      consumes:
+      - application/json
+      operationId: workspaceAnswerInterview
+      parameters:
+      - in: path
+        name: id
+        required: true
+        type: string
+      - in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            answer:
+              type: string
+          required:
+          - answer
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              created_at:
+                type: string
+              current_ordinal:
+                type: integer
+              id:
+                type: string
+              status:
+                type: string
+              title:
+                type: string
+              turns:
+                items:
+                  properties:
+                    answer:
+                      type: string
+                    answered_at:
+                      type: string
+                    ordinal:
+                      type: integer
+                    question:
+                      type: string
+                  required:
+                  - ordinal
+                  - question
+                  type: object
+                type: array
+            type: object
+      schemes:
+      - https
+      summary: AnswerInterview
+  /api/v1/interviews/{id}/report:
+    get:
+      operationId: workspaceGetInterviewReport
+      parameters:
+      - in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              id:
+                type: string
+              improvements:
+                items:
+                  type: string
+                type: array
+              next_steps:
+                items:
+                  type: string
+                type: array
+              overall_score:
+                type: integer
+              quality_passed:
+                type: boolean
+              session_id:
+                type: string
+              strengths:
+                items:
+                  type: string
+                type: array
+              turns:
+                items:
+                  properties:
+                    critique:
+                      type: string
+                    evidence:
+                      items:
+                        type: string
+                      type: array
+                    golden_answer:
+                      type: string
+                    ordinal:
+                      type: integer
+                    score:
+                      type: integer
+                  required:
+                  - ordinal
+                  - score
+                  - critique
+                  - golden_answer
+                  - evidence
+                  type: object
+                type: array
+            type: object
+      schemes:
+      - https
+      summary: GetInterviewReport
+  /api/v1/job-descriptions:
+    get:
+      operationId: workspaceListJobDescriptions
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            items:
+              properties:
+                capabilities:
+                  items:
+                    type: string
+                  type: array
+                company:
+                  type: string
+                content:
+                  type: string
+                created_at:
+                  type: string
+                id:
+                  type: string
+                title:
+                  type: string
+                updated_at:
+                  type: string
+              required:
+              - id
+              - title
+              - content
+              - capabilities
+              - created_at
+              - updated_at
+              type: object
+            properties:
+              capabilities:
+                items:
+                  type: string
+                type: array
+              company:
+                type: string
+              content:
+                type: string
+              created_at:
+                type: string
+              id:
+                type: string
+              title:
+                type: string
+              updated_at:
+                type: string
+            type: array
+      schemes:
+      - https
+      summary: ListJobDescriptions
+    post:
+      consumes:
+      - application/json
+      operationId: workspaceCreateJobDescription
+      parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            company:
+              type: string
+            content:
+              type: string
+            title:
+              type: string
+          required:
+          - title
+          - content
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              capabilities:
+                items:
+                  type: string
+                type: array
+              company:
+                type: string
+              content:
+                type: string
+              created_at:
+                type: string
+              id:
+                type: string
+              title:
+                type: string
+              updated_at:
+                type: string
+            type: object
+      schemes:
+      - https
+      summary: CreateJobDescription
+  /api/v1/me:
+    get:
+      operationId: workspaceMe
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              display_name:
+                type: string
+              email:
+                type: string
+              id:
+                type: string
+            type: object
+      schemes:
+      - https
+      summary: Me
+  /api/v1/question-sets:
+    post:
+      consumes:
+      - application/json
+      operationId: workspaceCreateQuestionSet
+      parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            job_description_id:
+              type: string
+            resume_id:
+              type: string
+            target_role:
+              type: string
+          required:
+          - resume_id
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              created_at:
+                type: string
+              id:
+                type: string
+              job_description_id:
+                type: string
+              questions:
+                items:
+                  properties:
+                    expected_points:
+                      items:
+                        type: string
+                      type: array
+                    follow_up_hint:
+                      type: string
+                    id:
+                      type: string
+                    intent:
+                      type: string
+                    ordinal:
+                      type: integer
+                    question:
+                      type: string
+                  required:
+                  - id
+                  - ordinal
+                  - question
+                  - intent
+                  - expected_points
+                  - follow_up_hint
+                  type: object
+                type: array
+              resume_id:
+                type: string
+              target_role:
+                type: string
+            type: object
+      schemes:
+      - https
+      summary: CreateQuestionSet
+  /api/v1/ready:
+    get:
+      operationId: systemReady
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              database:
+                type: string
+              redis:
+                type: string
+              status:
+                type: string
+              timestamp:
+                type: string
+            type: object
+      schemes:
+      - https
+      summary: Dependency readiness probe
+  /api/v1/resumes:
+    get:
+      operationId: workspaceListResumes
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            items:
+              properties:
+                created_at:
+                  type: string
+                file_name:
+                  type: string
+                id:
+                  type: string
+                status:
+                  type: string
+                title:
+                  type: string
+                updated_at:
+                  type: string
+                version_id:
+                  type: string
+              required:
+              - id
+              - title
+              - status
+              - created_at
+              - updated_at
+              type: object
+            properties:
+              created_at:
+                type: string
+              file_name:
+                type: string
+              id:
+                type: string
+              status:
+                type: string
+              title:
+                type: string
+              updated_at:
+                type: string
+              version_id:
+                type: string
+            type: array
+      schemes:
+      - https
+      summary: ListResumes
+  /api/v1/resumes/{id}:
+    get:
+      operationId: workspaceGetResume
+      parameters:
+      - in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              created_at:
+                type: string
+              facts:
+                items:
+                  properties:
+                    excerpt:
+                      type: string
+                    key:
+                      type: string
+                    type:
+                      type: string
+                    value: {}
+                  required:
+                  - type
+                  - key
+                  - value
+                  - excerpt
+                  type: object
+                type: array
+              file_name:
+                type: string
+              id:
+                type: string
+              status:
+                type: string
+              title:
+                type: string
+              updated_at:
+                type: string
+              version_id:
+                type: string
+            type: object
+      schemes:
+      - https
+      summary: GetResume
+  /api/v1/resumes/{id}/versions/{versionId}/complete:
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      operationId: workspaceCompleteResumeUpload
+      parameters:
+      - in: path
+        name: id
+        required: true
+        type: string
+      - in: path
+        name: versionId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              status:
+                type: string
+              task_id:
+                type: string
+            type: object
+      schemes:
+      - https
+      summary: CompleteResumeUpload
+  /api/v1/resumes/uploads:
+    post:
+      consumes:
+      - application/json
+      operationId: workspaceCreateResumeUpload
+      parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            content_type:
+              type: string
+            file_name:
+              type: string
+            size_bytes:
+              type: integer
+            title:
+              type: string
+          required:
+          - title
+          - file_name
+          - content_type
+          - size_bytes
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              expires_at:
+                type: string
+              resume_id:
+                type: string
+              upload_headers:
+                additionalProperties:
+                  type: string
+                type: object
+              upload_url:
+                type: string
+              version_id:
+                type: string
+            type: object
+      schemes:
+      - https
+      summary: CreateResumeUpload
+  /api/v1/tasks/{id}:
+    get:
+      operationId: workspaceGetTask
+      parameters:
+      - in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              error:
+                type: string
+              id:
+                type: string
+              progress:
+                type: integer
+              result: {}
+              status:
+                type: string
+              type:
+                type: string
+            type: object
+      schemes:
+      - https
+      summary: GetTask
+produces:
+- application/json
+schemes:
+- https
+swagger: "2.0"
+x-date: "2026-07-19 22:51:32"
+x-description: This is a goctl generated swagger file.
+x-github: https://github.com/zeromicro/go-zero
+x-go-zero-doc: https://go-zero.dev/
+x-goctl-version: 1.10.1

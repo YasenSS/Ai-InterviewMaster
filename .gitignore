@@ -1,0 +1,35 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Go
+backend/bin/
+backend/coverage.out
+backend/coverage.html
+backend/tmp/
+
+# Node / Next.js
+node_modules/
+.pnpm-store/
+web/.next/
+web/out/
+web/coverage/
+web/.env.local
+
+# Generated and local runtime data
+.cache/
+.tmp/
+data/
+dist/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
