@@ -3,7 +3,7 @@ import * as components from "./InterviewMasterComponents"
 export * from "./InterviewMasterComponents"
 
 /**
- * @description 
+ * @description "Authenticate a user and start a refresh session"
  * @param req
  */
 export function login(req: components.LoginRequest) {
@@ -11,7 +11,21 @@ export function login(req: components.LoginRequest) {
 }
 
 /**
- * @description 
+ * @description "Revoke the current refresh session"
+ */
+export function logout() {
+	return webapi.post<null>(`/api/v1/auth/logout`)
+}
+
+/**
+ * @description "Rotate the refresh session and issue a new access token"
+ */
+export function refresh() {
+	return webapi.post<components.AuthResponse>(`/api/v1/auth/refresh`)
+}
+
+/**
+ * @description "Register a user and start a refresh session"
  * @param req
  */
 export function register(req: components.RegisterRequest) {
@@ -33,7 +47,15 @@ export function ready() {
 }
 
 /**
- * @description 
+ * @description "Change the authenticated user password"
+ * @param req
+ */
+export function changePassword(req: components.ChangePasswordRequest) {
+	return webapi.post<null>(`/api/v1/auth/change-password`, req)
+}
+
+/**
+ * @description "Enqueue a beta ASR task"
  * @param req
  */
 export function createASRTask(req: components.ASRRequest) {
@@ -41,7 +63,7 @@ export function createASRTask(req: components.ASRRequest) {
 }
 
 /**
- * @description 
+ * @description "Create a browser-direct beta ASR upload"
  * @param req
  */
 export function createASRUpload(req: components.ASRUploadRequest) {
@@ -49,7 +71,7 @@ export function createASRUpload(req: components.ASRUploadRequest) {
 }
 
 /**
- * @description 
+ * @description "Search beta company interview intelligence"
  * @param req
  */
 export function searchCompanyIntel(req: components.CompanyIntelRequest) {
@@ -57,7 +79,14 @@ export function searchCompanyIntel(req: components.CompanyIntelRequest) {
 }
 
 /**
- * @description 
+ * @description "Return the authenticated user's dashboard aggregates"
+ */
+export function dashboardSummary() {
+	return webapi.get<components.DashboardSummaryResponse>(`/api/v1/dashboard/summary`)
+}
+
+/**
+ * @description "Create an interview from a question snapshot"
  * @param req
  */
 export function createInterview(req: components.CreateInterviewRequest) {
@@ -65,7 +94,15 @@ export function createInterview(req: components.CreateInterviewRequest) {
 }
 
 /**
- * @description 
+ * @description "List interviews with aggregate progress"
+ * @param params
+ */
+export function listInterviews(params: components.InterviewListRequestParams) {
+	return webapi.get<components.InterviewPageResponse>(`/api/v1/interviews`, params)
+}
+
+/**
+ * @description "Return an interview with server timing state"
  * @param params
  */
 export function getInterview(params: components.InterviewPathParams, id: string) {
@@ -73,7 +110,7 @@ export function getInterview(params: components.InterviewPathParams, id: string)
 }
 
 /**
- * @description 
+ * @description "Deprecated: use PUT /interviews/:id/turns/:ordinal/answer"
  * @param params
  * @param req
  */
@@ -82,7 +119,16 @@ export function answerInterview(params: components.AnswerInterviewRequestParams,
 }
 
 /**
- * @description 
+ * @description "Complete and lock an interview"
+ * @param params
+ * @param req
+ */
+export function completeInterview(params: components.CompleteInterviewRequestParams, req: components.CompleteInterviewRequest, id: string) {
+	return webapi.post<components.InterviewSessionResponse>(`/api/v1/interviews/${id}/complete`, params, req)
+}
+
+/**
+ * @description "Return or generate the unique interview report"
  * @param params
  */
 export function getInterviewReport(params: components.InterviewPathParams, id: string) {
@@ -90,44 +136,138 @@ export function getInterviewReport(params: components.InterviewPathParams, id: s
 }
 
 /**
- * @description 
+ * @description "Save or overwrite a specific interview answer"
+ * @param params
  * @param req
  */
-export function createJobDescription(req: components.JobDescriptionRequest) {
+export function saveInterviewAnswer(params: components.SaveInterviewAnswerRequestParams, req: components.SaveInterviewAnswerRequest, id: string, ordinal: number) {
+	return webapi.put<components.InterviewSessionResponse>(`/api/v1/interviews/${id}/turns/${ordinal}/answer`, params, req)
+}
+
+/**
+ * @description "Skip a specific interview turn"
+ * @param params
+ */
+export function skipInterviewTurn(params: components.InterviewTurnPathParams, id: string, ordinal: number) {
+	return webapi.post<components.InterviewSessionResponse>(`/api/v1/interviews/${id}/turns/${ordinal}/skip`, params)
+}
+
+/**
+ * @description "Create a job description"
+ * @param req
+ */
+export function createJobDescription(req: components.CreateJobDescriptionRequest) {
 	return webapi.post<components.JobDescriptionResponse>(`/api/v1/job-descriptions`, req)
 }
 
 /**
- * @description 
+ * @description "List job descriptions with pagination"
+ * @param params
  */
-export function listJobDescriptions() {
-	return webapi.get<Array<components.JobDescriptionResponse>>(`/api/v1/job-descriptions`)
+export function listJobDescriptions(params: components.PageRequestParams) {
+	return webapi.get<components.JobDescriptionPageResponse>(`/api/v1/job-descriptions`, params)
 }
 
 /**
- * @description 
+ * @description "Return a job description"
+ * @param params
+ */
+export function getJobDescription(params: components.JobDescriptionPathParams, id: string) {
+	return webapi.get<components.JobDescriptionResponse>(`/api/v1/job-descriptions/${id}`, params)
+}
+
+/**
+ * @description "Update a job description and re-extract capabilities"
+ * @param params
+ * @param req
+ */
+export function updateJobDescription(params: components.UpdateJobDescriptionRequestParams, req: components.UpdateJobDescriptionRequest, id: string) {
+	return webapi.patch<components.JobDescriptionResponse>(`/api/v1/job-descriptions/${id}`, params, req)
+}
+
+/**
+ * @description "Delete a job description while preserving history"
+ * @param params
+ */
+export function deleteJobDescription(params: components.JobDescriptionPathParams, id: string) {
+	return webapi.delete<null>(`/api/v1/job-descriptions/${id}`, params)
+}
+
+/**
+ * @description "Return the authenticated user profile"
  */
 export function me() {
 	return webapi.get<components.UserResponse>(`/api/v1/me`)
 }
 
 /**
- * @description 
+ * @description "Update the authenticated user profile"
+ * @param req
+ */
+export function updateMe(req: components.UpdateMeRequest) {
+	return webapi.patch<components.UserResponse>(`/api/v1/me`, req)
+}
+
+/**
+ * @description "Generate a question set"
  * @param req
  */
 export function createQuestionSet(req: components.CreateQuestionSetRequest) {
-	return webapi.post<components.QuestionSetResponse>(`/api/v1/question-sets`, req)
+	return webapi.post<components.QuestionSetDetailResponse>(`/api/v1/question-sets`, req)
 }
 
 /**
- * @description 
+ * @description "List question sets with pagination and filtering"
+ * @param params
  */
-export function listResumes() {
-	return webapi.get<Array<components.ResumeResponse>>(`/api/v1/resumes`)
+export function listQuestionSets(params: components.QuestionSetListRequestParams) {
+	return webapi.get<components.QuestionSetPageResponse>(`/api/v1/question-sets`, params)
 }
 
 /**
- * @description 
+ * @description "Return a question set and its questions"
+ * @param params
+ */
+export function getQuestionSet(params: components.QuestionSetPathParams, id: string) {
+	return webapi.get<components.QuestionSetDetailResponse>(`/api/v1/question-sets/${id}`, params)
+}
+
+/**
+ * @description "Replace question-set content transactionally"
+ * @param params
+ * @param req
+ */
+export function updateQuestionSet(params: components.UpdateQuestionSetRequestParams, req: components.UpdateQuestionSetRequest, id: string) {
+	return webapi.patch<components.QuestionSetDetailResponse>(`/api/v1/question-sets/${id}`, params, req)
+}
+
+/**
+ * @description "Delete an unused question set"
+ * @param params
+ */
+export function deleteQuestionSet(params: components.QuestionSetPathParams, id: string) {
+	return webapi.delete<null>(`/api/v1/question-sets/${id}`, params)
+}
+
+/**
+ * @description "Regenerate a question set with lineage"
+ * @param params
+ * @param req
+ */
+export function regenerateQuestionSet(params: components.RegenerateQuestionSetRequestParams, req: components.RegenerateQuestionSetRequest, id: string) {
+	return webapi.post<components.QuestionSetDetailResponse>(`/api/v1/question-sets/${id}/regenerate`, params, req)
+}
+
+/**
+ * @description "List resumes with pagination and filtering"
+ * @param params
+ */
+export function listResumes(params: components.ResumeListRequestParams) {
+	return webapi.get<components.ResumePageResponse>(`/api/v1/resumes`, params)
+}
+
+/**
+ * @description "Return resume metadata and extracted facts"
  * @param params
  */
 export function getResume(params: components.ResumePathParams, id: string) {
@@ -135,15 +275,40 @@ export function getResume(params: components.ResumePathParams, id: string) {
 }
 
 /**
- * @description 
+ * @description "Rename a resume"
  * @param params
+ * @param req
  */
-export function completeResumeUpload(params: components.CompleteResumeUploadRequestParams, id: string, versionId: string) {
-	return webapi.post<components.CompleteResumeUploadResponse>(`/api/v1/resumes/${id}/versions/${versionId}/complete`, params)
+export function updateResume(params: components.UpdateResumeRequestParams, req: components.UpdateResumeRequest, id: string) {
+	return webapi.patch<components.ResumeSummaryResponse>(`/api/v1/resumes/${id}`, params, req)
 }
 
 /**
- * @description 
+ * @description "Delete an unused resume"
+ * @param params
+ */
+export function deleteResume(params: components.ResumePathParams, id: string) {
+	return webapi.delete<null>(`/api/v1/resumes/${id}`, params)
+}
+
+/**
+ * @description "Reparse the current resume version"
+ * @param params
+ */
+export function reparseResume(params: components.ResumePathParams, id: string) {
+	return webapi.post<components.TaskAcceptedResponse>(`/api/v1/resumes/${id}/reparse`, params)
+}
+
+/**
+ * @description "Complete a resume upload and enqueue parsing"
+ * @param params
+ */
+export function completeResumeUpload(params: components.CompleteResumeUploadRequestParams, id: string, versionId: string) {
+	return webapi.post<components.TaskAcceptedResponse>(`/api/v1/resumes/${id}/versions/${versionId}/complete`, params)
+}
+
+/**
+ * @description "Create a browser-direct resume upload"
  * @param req
  */
 export function createResumeUpload(req: components.CreateResumeUploadRequest) {
@@ -151,9 +316,25 @@ export function createResumeUpload(req: components.CreateResumeUploadRequest) {
 }
 
 /**
- * @description 
+ * @description "List asynchronous tasks with pagination and filtering"
+ * @param params
+ */
+export function listTasks(params: components.TaskListRequestParams) {
+	return webapi.get<components.TaskPageResponse>(`/api/v1/tasks`, params)
+}
+
+/**
+ * @description "Return asynchronous task state"
  * @param params
  */
 export function getTask(params: components.TaskPathParams, id: string) {
 	return webapi.get<components.TaskResponse>(`/api/v1/tasks/${id}`, params)
+}
+
+/**
+ * @description "Retry a supported failed task"
+ * @param params
+ */
+export function retryTask(params: components.TaskPathParams, id: string) {
+	return webapi.post<components.TaskAcceptedResponse>(`/api/v1/tasks/${id}/retry`, params)
 }

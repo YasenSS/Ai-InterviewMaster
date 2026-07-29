@@ -21,3 +21,17 @@ func TestMiddlewarePreservesValidRequestID(t *testing.T) {
 		t.Fatalf("response request ID = %q", got)
 	}
 }
+
+func TestEnsureAddsCorrelationBeforeMiddlewareChain(t *testing.T) {
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	recorder := httptest.NewRecorder()
+
+	request = Ensure(recorder, request)
+
+	if got := FromContext(request.Context()); got == "" {
+		t.Fatal("request context is missing a generated request ID")
+	}
+	if got := recorder.Header().Get(Header); got != FromContext(request.Context()) {
+		t.Fatalf("response request ID = %q", got)
+	}
+}

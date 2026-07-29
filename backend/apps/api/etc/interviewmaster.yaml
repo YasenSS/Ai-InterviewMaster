@@ -22,6 +22,7 @@ Runtime:
     DB: 0
   ObjectStore:
     Endpoint: http://localhost:9000
+    PublicEndpoint: http://localhost:9000
     Region: us-east-1
     Bucket: interviewmaster-local
     AccessKey: interviewmaster
@@ -41,4 +42,6 @@ Runtime:
       - http://localhost:3000
 Auth:
   AccessSecret: development-only-replace-before-production-32chars
-  AccessExpire: 604800
+  AccessExpire: 900
+  RefreshExpire: 2592000
+  RefreshCookieName: interviewmaster_refresh

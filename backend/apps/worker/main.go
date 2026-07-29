@@ -31,10 +31,14 @@ func main() {
 		panic(err)
 	}
 	db, err := database.New(context.Background(), c.Runtime.Database)
-	if err != nil { panic(err) }
+	if err != nil {
+		panic(err)
+	}
 	defer db.Close()
 	store, err := objectstore.New(c.Runtime.ObjectStore)
-	if err != nil { panic(err) }
+	if err != nil {
+		panic(err)
+	}
 	logging.Setup("info")
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -67,6 +71,7 @@ func main() {
 	mux := asynq.NewServeMux()
 	mux.HandleFunc(tasks.TypeNoop, tasks.HandleNoop)
 	mux.Handle(tasks.TypeResumeParse, tasks.ResumeParseHandler(db, store, c.Runtime.ObjectStore.Bucket, c.Runtime.Parser.TikaURL))
+	mux.Handle("object:cleanup", tasks.ObjectCleanupHandler(db, store, c.Runtime.ObjectStore.Bucket))
 	mux.Handle("asr:transcribe", tasks.ASRHandler(db, store, c.Runtime.ObjectStore.Bucket, c.Runtime.Parser.ASRURL))
 
 	slog.Info("starting worker", "environment", c.Runtime.Environment, "concurrency", c.Concurrency)

@@ -28,3 +28,14 @@ func TestHTTPResponseUsesApplicationError(t *testing.T) {
 		t.Fatalf("code = %q", response.Code)
 	}
 }
+
+func TestHTTPResponseClassifiesMalformedRequest(t *testing.T) {
+	status, body := HTTPResponse(context.Background(), errors.New(`field "page" is not set`))
+	if status != http.StatusBadRequest {
+		t.Fatalf("status = %d", status)
+	}
+	response := body.(Response)
+	if response.Code != CodeValidation {
+		t.Fatalf("code = %q", response.Code)
+	}
+}

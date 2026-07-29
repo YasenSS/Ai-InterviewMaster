@@ -1,18 +1,15 @@
-// Code scaffolded by goctl. Safe to edit.
-// goctl 1.10.1
-
 package auth
 
 import (
 	"context"
-	"fmt"
+	"errors"
+	"net/http"
 	"strings"
-	"time"
 
 	"github.com/interviewmaster/interviewmaster/backend/apps/api/internal/svc"
 	"github.com/interviewmaster/interviewmaster/backend/apps/api/internal/types"
-	platformauth "github.com/interviewmaster/interviewmaster/backend/internal/platform/auth"
-
+	"github.com/interviewmaster/interviewmaster/backend/internal/platform/apperror"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/zeromicro/go-zero/core/logx"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -31,27 +28,71 @@ func NewRegisterLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Register
 	}
 }
 
-func (l *RegisterLogic) Register(req *types.RegisterRequest) (resp *types.AuthResponse, err error) {
-	email := strings.ToLower(strings.TrimSpace(req.Email))
-	name := strings.TrimSpace(req.DisplayName)
-	if !strings.Contains(email, "@") || len(req.Password) < 8 || name == "" {
-		return nil, fmt.Errorf("email、密码（至少 8 位）和显示名称均为必填项")
-	}
-	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+func (l *RegisterLogic) Register(req *types.RegisterRequest) (*types.AuthResponse, error) {
+	result, err := l.RegisterWithSession(req)
 	if err != nil {
-		return nil, fmt.Errorf("hash password: %w", err)
+		return nil, err
 	}
+	return result.Response, nil
+}
+
+func (l *RegisterLogic) RegisterWithSession(req *types.RegisterRequest) (*sessionResult, error) {
+	email, emailOK := normalizeEmail(req.Email)
+	displayName, nameOK := validateDisplayName(req.DisplayName)
+	fields := make(map[string][]string)
+	if !emailOK {
+		fields["email"] = []string{"请输入合法邮箱，且长度不超过 254 个字符"}
+	}
+	if !validatePassword(req.Password) {
+		fields["password"] = []string{"密码长度必须为 8–72 个字符"}
+	}
+	if !nameOK {
+		fields["display_name"] = []string{"显示名称长度必须为 1–80 个字符"}
+	}
+	if len(fields) > 0 {
+		return nil, apperror.Validation(fields)
+	}
+
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+	tx, err := l.svcCtx.Database.Begin(l.ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(l.ctx)
+
 	var user types.UserResponse
-	err = l.svcCtx.Database.QueryRow(l.ctx, `
+	err = tx.QueryRow(l.ctx, `
 		INSERT INTO users (email, password_hash, display_name)
-		VALUES ($1, $2, $3) RETURNING id::text, email, display_name`, email, string(hash), name).
-		Scan(&user.Id, &user.Email, &user.DisplayName)
+		VALUES ($1, $2, $3)
+		RETURNING id::text, email, display_name`,
+		email,
+		string(passwordHash),
+		displayName,
+	).Scan(&user.Id, &user.Email, &user.DisplayName)
 	if err != nil {
-		return nil, fmt.Errorf("create user: %w", err)
+		var pgErr *pgconn.PgError
+		if strings.Contains(strings.ToLower(err.Error()), "unique") ||
+			(errors.As(err, &pgErr) && pgErr.Code == "23505") {
+			return nil, apperror.New(
+				"EMAIL_ALREADY_REGISTERED",
+				"该邮箱已注册",
+				http.StatusConflict,
+				nil,
+				nil,
+			)
+		}
+		return nil, err
 	}
-	token, err := platformauth.Issue(user.Id, l.svcCtx.Config.Auth.AccessSecret, time.Duration(l.svcCtx.Config.Auth.AccessExpire)*time.Second)
+
+	result, err := createSession(l.ctx, tx, l.svcCtx, user)
 	if err != nil {
-		return nil, fmt.Errorf("issue access token: %w", err)
+		return nil, err
 	}
-	return &types.AuthResponse{AccessToken: token, TokenType: "Bearer", ExpiresIn: l.svcCtx.Config.Auth.AccessExpire, User: user}, nil
+	if err := tx.Commit(l.ctx); err != nil {
+		return nil, err
+	}
+	return result, nil
 }

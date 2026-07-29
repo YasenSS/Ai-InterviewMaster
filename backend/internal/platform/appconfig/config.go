@@ -34,12 +34,13 @@ type Redis struct {
 }
 
 type ObjectStore struct {
-	Endpoint     string
-	Region       string
-	Bucket       string
-	AccessKey    string
-	SecretKey    string
-	UsePathStyle bool
+	Endpoint       string
+	PublicEndpoint string
+	Region         string
+	Bucket         string
+	AccessKey      string
+	SecretKey      string
+	UsePathStyle   bool
 }
 
 type Parser struct {
@@ -68,6 +69,7 @@ func ApplyEnv(s *Settings) error {
 	overrideString("IM_REDIS_ADDR", &s.Redis.Addr)
 	overrideString("IM_REDIS_PASSWORD", &s.Redis.Password)
 	overrideString("IM_S3_ENDPOINT", &s.ObjectStore.Endpoint)
+	overrideString("IM_S3_PUBLIC_ENDPOINT", &s.ObjectStore.PublicEndpoint)
 	overrideString("IM_S3_REGION", &s.ObjectStore.Region)
 	overrideString("IM_S3_BUCKET", &s.ObjectStore.Bucket)
 	overrideString("IM_S3_ACCESS_KEY", &s.ObjectStore.AccessKey)

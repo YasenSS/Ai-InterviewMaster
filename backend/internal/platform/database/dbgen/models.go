@@ -5,11 +5,362 @@
 package dbgen
 
 import (
+	"database/sql/driver"
+	"fmt"
+
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/pgvector/pgvector-go"
 )
+
+type InterviewStatus string
+
+const (
+	InterviewStatusDraft     InterviewStatus = "draft"
+	InterviewStatusActive    InterviewStatus = "active"
+	InterviewStatusCompleted InterviewStatus = "completed"
+	InterviewStatusAbandoned InterviewStatus = "abandoned"
+)
+
+func (e *InterviewStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = InterviewStatus(s)
+	case string:
+		*e = InterviewStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for InterviewStatus: %T", src)
+	}
+	return nil
+}
+
+type NullInterviewStatus struct {
+	InterviewStatus InterviewStatus `json:"interview_status"`
+	Valid           bool            `json:"valid"` // Valid is true if InterviewStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullInterviewStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.InterviewStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.InterviewStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullInterviewStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.InterviewStatus), nil
+}
+
+type QuestionSetStatus string
+
+const (
+	QuestionSetStatusReady    QuestionSetStatus = "ready"
+	QuestionSetStatusArchived QuestionSetStatus = "archived"
+)
+
+func (e *QuestionSetStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = QuestionSetStatus(s)
+	case string:
+		*e = QuestionSetStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for QuestionSetStatus: %T", src)
+	}
+	return nil
+}
+
+type NullQuestionSetStatus struct {
+	QuestionSetStatus QuestionSetStatus `json:"question_set_status"`
+	Valid             bool              `json:"valid"` // Valid is true if QuestionSetStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullQuestionSetStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.QuestionSetStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.QuestionSetStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullQuestionSetStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.QuestionSetStatus), nil
+}
+
+type ResumeStatus string
+
+const (
+	ResumeStatusDraft      ResumeStatus = "draft"
+	ResumeStatusUploading  ResumeStatus = "uploading"
+	ResumeStatusPending    ResumeStatus = "pending"
+	ResumeStatusProcessing ResumeStatus = "processing"
+	ResumeStatusCompleted  ResumeStatus = "completed"
+	ResumeStatusFailed     ResumeStatus = "failed"
+)
+
+func (e *ResumeStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ResumeStatus(s)
+	case string:
+		*e = ResumeStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ResumeStatus: %T", src)
+	}
+	return nil
+}
+
+type NullResumeStatus struct {
+	ResumeStatus ResumeStatus `json:"resume_status"`
+	Valid        bool         `json:"valid"` // Valid is true if ResumeStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullResumeStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.ResumeStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ResumeStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullResumeStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ResumeStatus), nil
+}
+
+type TaskStatus string
+
+const (
+	TaskStatusPending   TaskStatus = "pending"
+	TaskStatusRunning   TaskStatus = "running"
+	TaskStatusSucceeded TaskStatus = "succeeded"
+	TaskStatusFailed    TaskStatus = "failed"
+)
+
+func (e *TaskStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = TaskStatus(s)
+	case string:
+		*e = TaskStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for TaskStatus: %T", src)
+	}
+	return nil
+}
+
+type NullTaskStatus struct {
+	TaskStatus TaskStatus `json:"task_status"`
+	Valid      bool       `json:"valid"` // Valid is true if TaskStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullTaskStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.TaskStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.TaskStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullTaskStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.TaskStatus), nil
+}
 
 type AppSchemaMetadatum struct {
 	Key       string             `json:"key"`
 	Value     []byte             `json:"value"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+type AsyncTask struct {
+	ID            pgtype.UUID        `json:"id"`
+	UserID        pgtype.UUID        `json:"user_id"`
+	TaskType      string             `json:"task_type"`
+	RefID         pgtype.UUID        `json:"ref_id"`
+	Status        TaskStatus         `json:"status"`
+	Progress      int16              `json:"progress"`
+	ErrorMessage  pgtype.Text        `json:"error_message"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+	CompletedAt   pgtype.Timestamptz `json:"completed_at"`
+	Result        []byte             `json:"result"`
+	RetryOfTaskID pgtype.UUID        `json:"retry_of_task_id"`
+	ErrorCode     pgtype.Text        `json:"error_code"`
+	ErrorSummary  pgtype.Text        `json:"error_summary"`
+	StartedAt     pgtype.Timestamptz `json:"started_at"`
+}
+
+type InterviewReport struct {
+	ID           pgtype.UUID        `json:"id"`
+	SessionID    pgtype.UUID        `json:"session_id"`
+	OverallScore int16              `json:"overall_score"`
+	Strengths    []byte             `json:"strengths"`
+	Improvements []byte             `json:"improvements"`
+	NextSteps    []byte             `json:"next_steps"`
+	QualityGate  []byte             `json:"quality_gate"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+}
+
+type InterviewSession struct {
+	ID                      pgtype.UUID        `json:"id"`
+	UserID                  pgtype.UUID        `json:"user_id"`
+	ResumeID                pgtype.UUID        `json:"resume_id"`
+	QuestionSetID           pgtype.UUID        `json:"question_set_id"`
+	JobDescriptionID        pgtype.UUID        `json:"job_description_id"`
+	Title                   string             `json:"title"`
+	Status                  InterviewStatus    `json:"status"`
+	CurrentOrdinal          int32              `json:"current_ordinal"`
+	CreatedAt               pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt               pgtype.Timestamptz `json:"updated_at"`
+	CompletedAt             pgtype.Timestamptz `json:"completed_at"`
+	StartedAt               pgtype.Timestamptz `json:"started_at"`
+	DurationSeconds         int32              `json:"duration_seconds"`
+	QuestionDurationSeconds int32              `json:"question_duration_seconds"`
+}
+
+type InterviewTurn struct {
+	ID               pgtype.UUID        `json:"id"`
+	SessionID        pgtype.UUID        `json:"session_id"`
+	Ordinal          int32              `json:"ordinal"`
+	Question         string             `json:"question"`
+	Answer           pgtype.Text        `json:"answer"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	AnsweredAt       pgtype.Timestamptz `json:"answered_at"`
+	StartedAt        pgtype.Timestamptz `json:"started_at"`
+	SkippedAt        pgtype.Timestamptz `json:"skipped_at"`
+	TimeSpentSeconds int32              `json:"time_spent_seconds"`
+}
+
+type InterviewTurnReport struct {
+	ID           pgtype.UUID `json:"id"`
+	ReportID     pgtype.UUID `json:"report_id"`
+	TurnID       pgtype.UUID `json:"turn_id"`
+	Score        int16       `json:"score"`
+	Critique     string      `json:"critique"`
+	GoldenAnswer string      `json:"golden_answer"`
+	Evidence     []byte      `json:"evidence"`
+}
+
+type JobDescription struct {
+	ID                    pgtype.UUID        `json:"id"`
+	UserID                pgtype.UUID        `json:"user_id"`
+	Company               pgtype.Text        `json:"company"`
+	Title                 string             `json:"title"`
+	Content               string             `json:"content"`
+	ExtractedCapabilities []byte             `json:"extracted_capabilities"`
+	CreatedAt             pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt             pgtype.Timestamptz `json:"updated_at"`
+}
+
+type Question struct {
+	ID              pgtype.UUID `json:"id"`
+	QuestionSetID   pgtype.UUID `json:"question_set_id"`
+	Ordinal         int32       `json:"ordinal"`
+	Question        string      `json:"question"`
+	Intent          string      `json:"intent"`
+	ExpectedPoints  []byte      `json:"expected_points"`
+	EvidenceFactIds []byte      `json:"evidence_fact_ids"`
+	FollowUpHint    pgtype.Text `json:"follow_up_hint"`
+}
+
+type QuestionSet struct {
+	ID                  pgtype.UUID        `json:"id"`
+	UserID              pgtype.UUID        `json:"user_id"`
+	ResumeID            pgtype.UUID        `json:"resume_id"`
+	JobDescriptionID    pgtype.UUID        `json:"job_description_id"`
+	TargetRole          pgtype.Text        `json:"target_role"`
+	Status              QuestionSetStatus  `json:"status"`
+	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
+	SourceQuestionSetID pgtype.UUID        `json:"source_question_set_id"`
+}
+
+type RefreshSession struct {
+	ID                  pgtype.UUID        `json:"id"`
+	UserID              pgtype.UUID        `json:"user_id"`
+	TokenHash           string             `json:"token_hash"`
+	ExpiresAt           pgtype.Timestamptz `json:"expires_at"`
+	RevokedAt           pgtype.Timestamptz `json:"revoked_at"`
+	ReplacedBySessionID pgtype.UUID        `json:"replaced_by_session_id"`
+	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+	LastUsedAt          pgtype.Timestamptz `json:"last_used_at"`
+}
+
+type Resume struct {
+	ID               pgtype.UUID        `json:"id"`
+	UserID           pgtype.UUID        `json:"user_id"`
+	Title            string             `json:"title"`
+	Status           ResumeStatus       `json:"status"`
+	CurrentVersionID pgtype.UUID        `json:"current_version_id"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+}
+
+type ResumeChunk struct {
+	ID              pgtype.UUID        `json:"id"`
+	ResumeVersionID pgtype.UUID        `json:"resume_version_id"`
+	ChunkNo         int32              `json:"chunk_no"`
+	Content         string             `json:"content"`
+	TokenCount      int32              `json:"token_count"`
+	Embedding       pgvector.Vector    `json:"embedding"`
+	EmbeddingModel  pgtype.Text        `json:"embedding_model"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+}
+
+type ResumeFact struct {
+	ID              pgtype.UUID        `json:"id"`
+	ResumeVersionID pgtype.UUID        `json:"resume_version_id"`
+	FactType        string             `json:"fact_type"`
+	FactKey         string             `json:"fact_key"`
+	FactValue       []byte             `json:"fact_value"`
+	SourceExcerpt   string             `json:"source_excerpt"`
+	Confidence      pgtype.Numeric     `json:"confidence"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+}
+
+type ResumeVersion struct {
+	ID               pgtype.UUID        `json:"id"`
+	ResumeID         pgtype.UUID        `json:"resume_id"`
+	VersionNo        int32              `json:"version_no"`
+	ObjectKey        string             `json:"object_key"`
+	OriginalFilename string             `json:"original_filename"`
+	ContentType      string             `json:"content_type"`
+	SizeBytes        int64              `json:"size_bytes"`
+	ChecksumSha256   pgtype.Text        `json:"checksum_sha256"`
+	ExtractedText    pgtype.Text        `json:"extracted_text"`
+	ParseError       pgtype.Text        `json:"parse_error"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	ProcessedAt      pgtype.Timestamptz `json:"processed_at"`
+}
+
+type User struct {
+	ID           pgtype.UUID        `json:"id"`
+	Email        string             `json:"email"`
+	PasswordHash string             `json:"password_hash"`
+	DisplayName  string             `json:"display_name"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 }

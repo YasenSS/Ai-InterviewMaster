@@ -16,14 +16,23 @@ var validRequestID = regexp.MustCompile(`^[A-Za-z0-9._-]{8,128}$`)
 
 func Middleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id := r.Header.Get(Header)
+		next.ServeHTTP(w, Ensure(w, r))
+	}
+}
+
+// Ensure makes request correlation available even for responses emitted by
+// authentication middleware before the normal middleware chain is entered.
+func Ensure(w http.ResponseWriter, r *http.Request) *http.Request {
+	id := FromContext(r.Context())
+	if id == "" {
+		id = r.Header.Get(Header)
 		if !validRequestID.MatchString(id) {
 			id = New()
 		}
-		w.Header().Set(Header, id)
-		ctx := context.WithValue(r.Context(), contextKey{}, id)
-		next.ServeHTTP(w, r.WithContext(ctx))
 	}
+	w.Header().Set(Header, id)
+	ctx := context.WithValue(r.Context(), contextKey{}, id)
+	return r.WithContext(ctx)
 }
 
 func FromContext(ctx context.Context) string {

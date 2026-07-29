@@ -17,6 +17,8 @@ node_modules/
 web/.next/
 web/out/
 web/coverage/
+web/playwright-report/
+web/test-results/
 web/.env.local
 
 # Generated and local runtime data

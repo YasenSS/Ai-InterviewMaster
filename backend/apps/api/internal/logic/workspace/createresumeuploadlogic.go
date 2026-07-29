@@ -1,20 +1,11 @@
-// Code scaffolded by goctl. Safe to edit.
-// goctl 1.10.1
-
+// Resource logic is consolidated here so all resume endpoints share one domain implementation.
 package workspace
 
 import (
 	"context"
-	"fmt"
-	"path/filepath"
-	"strings"
-	"time"
 
 	"github.com/interviewmaster/interviewmaster/backend/apps/api/internal/svc"
 	"github.com/interviewmaster/interviewmaster/backend/apps/api/internal/types"
-	"github.com/interviewmaster/interviewmaster/backend/internal/platform/objectstore"
-	"github.com/google/uuid"
-
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -25,25 +16,139 @@ type CreateResumeUploadLogic struct {
 }
 
 func NewCreateResumeUploadLogic(ctx context.Context, svcCtx *svc.ServiceContext) *CreateResumeUploadLogic {
-	return &CreateResumeUploadLogic{
-		Logger: logx.WithContext(ctx),
-		ctx:    ctx,
-		svcCtx: svcCtx,
-	}
+	return &CreateResumeUploadLogic{Logger: logx.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
 }
 
-func (l *CreateResumeUploadLogic) CreateResumeUpload(req *types.CreateResumeUploadRequest) (resp *types.CreateResumeUploadResponse, err error) {
-	userID, err := currentUserID(l.ctx); if err != nil { return nil, err }
-	if strings.TrimSpace(req.FileName) == "" || req.SizeBytes <= 0 || req.SizeBytes > 20*1024*1024 { return nil, fmt.Errorf("请选择不超过 20MB 的简历文件") }
-	ext := strings.ToLower(filepath.Ext(req.FileName)); if ext != ".pdf" && ext != ".docx" && ext != ".txt" { return nil, fmt.Errorf("仅支持 PDF、DOCX 或 TXT 简历") }
-	if err := objectstore.EnsureBucket(l.ctx, l.svcCtx.ObjectStore, l.svcCtx.Config.Runtime.ObjectStore.Bucket, l.svcCtx.Config.Runtime.ObjectStore.Region); err != nil { return nil, err }
-	resumeID, versionID := uuid.NewString(), uuid.NewString()
-	objectKey := fmt.Sprintf("users/%s/resumes/%s/%s%s", userID, resumeID, versionID, ext)
-	tx, err := l.svcCtx.Database.Begin(l.ctx); if err != nil { return nil, err }; defer tx.Rollback(l.ctx)
-	_, err = tx.Exec(l.ctx, `INSERT INTO resumes (id,user_id,title,status) VALUES ($1,$2,$3,'uploading')`, resumeID, userID, strings.TrimSpace(req.Title)); if err != nil { return nil, err }
-	_, err = tx.Exec(l.ctx, `INSERT INTO resume_versions (id,resume_id,version_no,object_key,original_filename,content_type,size_bytes) VALUES ($1,$2,1,$3,$4,$5,$6)`, versionID,resumeID,objectKey,req.FileName,req.ContentType,req.SizeBytes); if err != nil { return nil, err }
-	_, err = tx.Exec(l.ctx, `UPDATE resumes SET current_version_id=$2 WHERE id=$1`, resumeID, versionID); if err != nil { return nil, err }
-	if err := tx.Commit(l.ctx); err != nil { return nil, err }
-	putURL, err := l.svcCtx.ObjectStore.PresignedPutObject(l.ctx, l.svcCtx.Config.Runtime.ObjectStore.Bucket, objectKey, 15*time.Minute); if err != nil { return nil, fmt.Errorf("sign upload: %w", err) }
-	return &types.CreateResumeUploadResponse{ResumeId:resumeID,VersionId:versionID,UploadUrl:putURL.String(),UploadHeaders:map[string]string{"Content-Type":req.ContentType},ExpiresAt:time.Now().Add(15*time.Minute).UTC().Format(time.RFC3339)}, nil
+func (l *CreateResumeUploadLogic) CreateResumeUpload(req *types.CreateResumeUploadRequest) (*types.CreateResumeUploadResponse, error) {
+	userID, err := currentUserID(l.ctx)
+	if err != nil {
+		return nil, err
+	}
+	return createResumeUpload(l.ctx, l.svcCtx, userID, req)
+}
+
+type CompleteResumeUploadLogic struct {
+	logx.Logger
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+}
+
+func NewCompleteResumeUploadLogic(ctx context.Context, svcCtx *svc.ServiceContext) *CompleteResumeUploadLogic {
+	return &CompleteResumeUploadLogic{Logger: logx.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
+}
+
+func (l *CompleteResumeUploadLogic) CompleteResumeUpload(req *types.CompleteResumeUploadRequest) (*types.TaskAcceptedResponse, error) {
+	userID, err := currentUserID(l.ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateID("id", req.Id); err != nil {
+		return nil, err
+	}
+	if err := validateID("version_id", req.VersionId); err != nil {
+		return nil, err
+	}
+	return completeResumeUpload(l.ctx, l.svcCtx, userID, req.Id, req.VersionId)
+}
+
+type ListResumesLogic struct {
+	logx.Logger
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+}
+
+func NewListResumesLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ListResumesLogic {
+	return &ListResumesLogic{Logger: logx.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
+}
+
+func (l *ListResumesLogic) ListResumes(req *types.ResumeListRequest) (*types.ResumePageResponse, error) {
+	userID, err := currentUserID(l.ctx)
+	if err != nil {
+		return nil, err
+	}
+	return listResumes(l.ctx, l.svcCtx, userID, req.Status, req.Page, req.PageSize, req.Sort)
+}
+
+type GetResumeLogic struct {
+	logx.Logger
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+}
+
+func NewGetResumeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetResumeLogic {
+	return &GetResumeLogic{Logger: logx.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
+}
+
+func (l *GetResumeLogic) GetResume(req *types.ResumePath) (*types.ResumeDetailResponse, error) {
+	userID, err := currentUserID(l.ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateID("id", req.Id); err != nil {
+		return nil, err
+	}
+	return loadResume(l.ctx, l.svcCtx, userID, req.Id)
+}
+
+type UpdateResumeLogic struct {
+	logx.Logger
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+}
+
+func NewUpdateResumeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *UpdateResumeLogic {
+	return &UpdateResumeLogic{Logger: logx.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
+}
+
+func (l *UpdateResumeLogic) UpdateResume(req *types.UpdateResumeRequest) (*types.ResumeSummaryResponse, error) {
+	userID, err := currentUserID(l.ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateID("id", req.Id); err != nil {
+		return nil, err
+	}
+	return updateResumeTitle(l.ctx, l.svcCtx, userID, req.Id, req.Title)
+}
+
+type DeleteResumeLogic struct {
+	logx.Logger
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+}
+
+func NewDeleteResumeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *DeleteResumeLogic {
+	return &DeleteResumeLogic{Logger: logx.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
+}
+
+func (l *DeleteResumeLogic) DeleteResume(req *types.ResumePath) error {
+	userID, err := currentUserID(l.ctx)
+	if err != nil {
+		return err
+	}
+	if err := validateID("id", req.Id); err != nil {
+		return err
+	}
+	return deleteResume(l.ctx, l.svcCtx, userID, req.Id)
+}
+
+type ReparseResumeLogic struct {
+	logx.Logger
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+}
+
+func NewReparseResumeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ReparseResumeLogic {
+	return &ReparseResumeLogic{Logger: logx.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
+}
+
+func (l *ReparseResumeLogic) ReparseResume(req *types.ResumePath) (*types.TaskAcceptedResponse, error) {
+	userID, err := currentUserID(l.ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateID("id", req.Id); err != nil {
+		return nil, err
+	}
+	return reparseResume(l.ctx, l.svcCtx, userID, req.Id)
 }

@@ -5,6 +5,34 @@ info:
   title: InterviewMaster API
   version: v1
 paths:
+  /api/v1/auth/change-password:
+    post:
+      consumes:
+      - application/json
+      operationId: workspaceChangePassword
+      parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            current_password:
+              type: string
+            new_password:
+              type: string
+          required:
+          - current_password
+          - new_password
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema: {}
+      schemes:
+      - https
+      summary: Change the authenticated user password
   /api/v1/auth/login:
     post:
       consumes:
@@ -53,7 +81,52 @@ paths:
             type: object
       schemes:
       - https
-      summary: Login
+      summary: Authenticate a user and start a refresh session
+  /api/v1/auth/logout:
+    post:
+      operationId: authLogout
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema: {}
+      schemes:
+      - https
+      summary: Revoke the current refresh session
+  /api/v1/auth/refresh:
+    post:
+      operationId: authRefresh
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              access_token:
+                type: string
+              expires_in:
+                type: integer
+              token_type:
+                type: string
+              user:
+                properties:
+                  display_name:
+                    type: string
+                  email:
+                    type: string
+                  id:
+                    type: string
+                required:
+                - id
+                - email
+                - display_name
+                type: object
+            type: object
+      schemes:
+      - https
+      summary: Rotate the refresh session and issue a new access token
   /api/v1/auth/register:
     post:
       consumes:
@@ -105,7 +178,7 @@ paths:
             type: object
       schemes:
       - https
-      summary: Register
+      summary: Register a user and start a refresh session
   /api/v1/beta/asr/tasks:
     post:
       consumes:
@@ -140,7 +213,7 @@ paths:
             type: object
       schemes:
       - https
-      summary: CreateASRTask
+      summary: Enqueue a beta ASR task
   /api/v1/beta/asr/uploads:
     post:
       consumes:
@@ -179,7 +252,7 @@ paths:
             type: object
       schemes:
       - https
-      summary: CreateASRUpload
+      summary: Create a browser-direct beta ASR upload
   /api/v1/beta/company-intel/search:
     post:
       consumes:
@@ -223,7 +296,238 @@ paths:
             type: object
       schemes:
       - https
-      summary: SearchCompanyIntel
+      summary: Search beta company interview intelligence
+  /api/v1/dashboard/summary:
+    get:
+      operationId: workspaceDashboardSummary
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              active_tasks:
+                items:
+                  properties:
+                    completed_at:
+                      type: string
+                    created_at:
+                      type: string
+                    error:
+                      properties:
+                        code:
+                          type: string
+                        message:
+                          type: string
+                      required:
+                      - code
+                      - message
+                      type: object
+                    id:
+                      type: string
+                    progress:
+                      type: integer
+                    reference:
+                      properties:
+                        id:
+                          type: string
+                        title:
+                          type: string
+                        type:
+                          type: string
+                      required:
+                      - type
+                      - id
+                      type: object
+                    result: {}
+                    retry_of_task_id:
+                      type: string
+                    started_at:
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      type: string
+                    updated_at:
+                      type: string
+                  required:
+                  - id
+                  - type
+                  - status
+                  - progress
+                  - reference
+                  - created_at
+                  - updated_at
+                  type: object
+                type: array
+              average_score:
+                type: number
+              counts:
+                properties:
+                  completed_interviews:
+                    type: integer
+                  interviews:
+                    type: integer
+                  job_descriptions:
+                    type: integer
+                  question_sets:
+                    type: integer
+                  resumes:
+                    type: integer
+                required:
+                - resumes
+                - job_descriptions
+                - question_sets
+                - interviews
+                - completed_interviews
+                type: object
+              improvement_topics:
+                items:
+                  properties:
+                    count:
+                      type: integer
+                    label:
+                      type: string
+                  required:
+                  - label
+                  - count
+                  type: object
+                type: array
+              recent_interviews:
+                items:
+                  properties:
+                    answered_count:
+                      type: integer
+                    completed_at:
+                      type: string
+                    created_at:
+                      type: string
+                    current_ordinal:
+                      type: integer
+                    duration_seconds:
+                      type: integer
+                    id:
+                      type: string
+                    overall_score:
+                      type: integer
+                    question_count:
+                      type: integer
+                    question_set:
+                      properties:
+                        id:
+                          type: string
+                        target_role:
+                          type: string
+                      required:
+                      - id
+                      type: object
+                    resume:
+                      properties:
+                        id:
+                          type: string
+                        title:
+                          type: string
+                      required:
+                      - id
+                      - title
+                      type: object
+                    skipped_count:
+                      type: integer
+                    started_at:
+                      type: string
+                    status:
+                      type: string
+                    title:
+                      type: string
+                    updated_at:
+                      type: string
+                  required:
+                  - id
+                  - title
+                  - status
+                  - resume
+                  - question_count
+                  - answered_count
+                  - skipped_count
+                  - current_ordinal
+                  - duration_seconds
+                  - created_at
+                  - updated_at
+                  type: object
+                type: array
+              recent_job_descriptions:
+                items:
+                  properties:
+                    capabilities:
+                      items:
+                        type: string
+                      type: array
+                    company:
+                      type: string
+                    content:
+                      type: string
+                    created_at:
+                      type: string
+                    id:
+                      type: string
+                    title:
+                      type: string
+                    updated_at:
+                      type: string
+                  required:
+                  - id
+                  - title
+                  - content
+                  - capabilities
+                  - created_at
+                  - updated_at
+                  type: object
+                type: array
+              recent_resumes:
+                items:
+                  properties:
+                    created_at:
+                      type: string
+                    file_name:
+                      type: string
+                    id:
+                      type: string
+                    status:
+                      type: string
+                    title:
+                      type: string
+                    updated_at:
+                      type: string
+                    version_id:
+                      type: string
+                  required:
+                  - id
+                  - title
+                  - status
+                  - created_at
+                  - updated_at
+                  type: object
+                type: array
+              score_trend:
+                items:
+                  properties:
+                    average_score:
+                      type: number
+                    date:
+                      type: string
+                    interview_count:
+                      type: integer
+                  required:
+                  - date
+                  - average_score
+                  - interview_count
+                  type: object
+                type: array
+            type: object
+      schemes:
+      - https
+      summary: Return the authenticated user's dashboard aggregates
   /api/v1/health:
     get:
       operationId: systemHealth
@@ -247,6 +551,110 @@ paths:
       - https
       summary: Liveness probe
   /api/v1/interviews:
+    get:
+      operationId: workspaceListInterviews
+      parameters:
+      - allowEmptyValue: true
+        in: query
+        items:
+          type: string
+        name: status
+        type: array
+      - default: 1
+        example: 1
+        in: query
+        name: page
+        required: true
+        type: integer
+      - default: 20
+        example: 20
+        in: query
+        name: page_size
+        required: true
+        type: integer
+      - allowEmptyValue: true
+        in: query
+        name: sort
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              items:
+                items:
+                  properties:
+                    answered_count:
+                      type: integer
+                    completed_at:
+                      type: string
+                    created_at:
+                      type: string
+                    current_ordinal:
+                      type: integer
+                    duration_seconds:
+                      type: integer
+                    id:
+                      type: string
+                    overall_score:
+                      type: integer
+                    question_count:
+                      type: integer
+                    question_set:
+                      properties:
+                        id:
+                          type: string
+                        target_role:
+                          type: string
+                      required:
+                      - id
+                      type: object
+                    resume:
+                      properties:
+                        id:
+                          type: string
+                        title:
+                          type: string
+                      required:
+                      - id
+                      - title
+                      type: object
+                    skipped_count:
+                      type: integer
+                    started_at:
+                      type: string
+                    status:
+                      type: string
+                    title:
+                      type: string
+                    updated_at:
+                      type: string
+                  required:
+                  - id
+                  - title
+                  - status
+                  - resume
+                  - question_count
+                  - answered_count
+                  - skipped_count
+                  - current_ordinal
+                  - duration_seconds
+                  - created_at
+                  - updated_at
+                  type: object
+                type: array
+              page:
+                type: integer
+              page_size:
+                type: integer
+              total:
+                type: integer
+            type: object
+      schemes:
+      - https
+      summary: List interviews with aggregate progress
     post:
       consumes:
       - application/json
@@ -259,6 +667,8 @@ paths:
           properties:
             job_description_id:
               type: string
+            question_duration_seconds:
+              type: integer
             question_set_id:
               type: string
             resume_id:
@@ -277,11 +687,58 @@ paths:
           description: ""
           schema:
             properties:
+              answered_count:
+                type: integer
+              completed_at:
+                type: string
               created_at:
                 type: string
               current_ordinal:
                 type: integer
+              duration_seconds:
+                type: integer
               id:
+                type: string
+              job_description:
+                properties:
+                  company:
+                    type: string
+                  id:
+                    type: string
+                  title:
+                    type: string
+                required:
+                - id
+                - title
+                type: object
+              overall_score:
+                type: integer
+              question_count:
+                type: integer
+              question_duration_seconds:
+                type: integer
+              question_set:
+                properties:
+                  id:
+                    type: string
+                  target_role:
+                    type: string
+                required:
+                - id
+                type: object
+              resume:
+                properties:
+                  id:
+                    type: string
+                  title:
+                    type: string
+                required:
+                - id
+                - title
+                type: object
+              skipped_count:
+                type: integer
+              started_at:
                 type: string
               status:
                 type: string
@@ -298,15 +755,27 @@ paths:
                       type: integer
                     question:
                       type: string
+                    skipped_at:
+                      type: string
+                    started_at:
+                      type: string
+                    state:
+                      type: string
+                    time_spent_seconds:
+                      type: integer
                   required:
                   - ordinal
                   - question
+                  - state
+                  - time_spent_seconds
                   type: object
                 type: array
+              updated_at:
+                type: string
             type: object
       schemes:
       - https
-      summary: CreateInterview
+      summary: Create an interview from a question snapshot
   /api/v1/interviews/{id}:
     get:
       operationId: workspaceGetInterview
@@ -322,11 +791,58 @@ paths:
           description: ""
           schema:
             properties:
+              answered_count:
+                type: integer
+              completed_at:
+                type: string
               created_at:
                 type: string
               current_ordinal:
                 type: integer
+              duration_seconds:
+                type: integer
               id:
+                type: string
+              job_description:
+                properties:
+                  company:
+                    type: string
+                  id:
+                    type: string
+                  title:
+                    type: string
+                required:
+                - id
+                - title
+                type: object
+              overall_score:
+                type: integer
+              question_count:
+                type: integer
+              question_duration_seconds:
+                type: integer
+              question_set:
+                properties:
+                  id:
+                    type: string
+                  target_role:
+                    type: string
+                required:
+                - id
+                type: object
+              resume:
+                properties:
+                  id:
+                    type: string
+                  title:
+                    type: string
+                required:
+                - id
+                - title
+                type: object
+              skipped_count:
+                type: integer
+              started_at:
                 type: string
               status:
                 type: string
@@ -343,15 +859,27 @@ paths:
                       type: integer
                     question:
                       type: string
+                    skipped_at:
+                      type: string
+                    started_at:
+                      type: string
+                    state:
+                      type: string
+                    time_spent_seconds:
+                      type: integer
                   required:
                   - ordinal
                   - question
+                  - state
+                  - time_spent_seconds
                   type: object
                 type: array
+              updated_at:
+                type: string
             type: object
       schemes:
       - https
-      summary: GetInterview
+      summary: Return an interview with server timing state
   /api/v1/interviews/{id}/answer:
     post:
       consumes:
@@ -379,11 +907,58 @@ paths:
           description: ""
           schema:
             properties:
+              answered_count:
+                type: integer
+              completed_at:
+                type: string
               created_at:
                 type: string
               current_ordinal:
                 type: integer
+              duration_seconds:
+                type: integer
               id:
+                type: string
+              job_description:
+                properties:
+                  company:
+                    type: string
+                  id:
+                    type: string
+                  title:
+                    type: string
+                required:
+                - id
+                - title
+                type: object
+              overall_score:
+                type: integer
+              question_count:
+                type: integer
+              question_duration_seconds:
+                type: integer
+              question_set:
+                properties:
+                  id:
+                    type: string
+                  target_role:
+                    type: string
+                required:
+                - id
+                type: object
+              resume:
+                properties:
+                  id:
+                    type: string
+                  title:
+                    type: string
+                required:
+                - id
+                - title
+                type: object
+              skipped_count:
+                type: integer
+              started_at:
                 type: string
               status:
                 type: string
@@ -400,15 +975,143 @@ paths:
                       type: integer
                     question:
                       type: string
+                    skipped_at:
+                      type: string
+                    started_at:
+                      type: string
+                    state:
+                      type: string
+                    time_spent_seconds:
+                      type: integer
                   required:
                   - ordinal
                   - question
+                  - state
+                  - time_spent_seconds
                   type: object
                 type: array
+              updated_at:
+                type: string
             type: object
       schemes:
       - https
-      summary: AnswerInterview
+      summary: 'Deprecated: use PUT /interviews/:id/turns/:ordinal/answer'
+  /api/v1/interviews/{id}/complete:
+    post:
+      consumes:
+      - application/json
+      operationId: workspaceCompleteInterview
+      parameters:
+      - in: path
+        name: id
+        required: true
+        type: string
+      - in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            confirm_incomplete:
+              type: boolean
+          required:
+          - confirm_incomplete
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              answered_count:
+                type: integer
+              completed_at:
+                type: string
+              created_at:
+                type: string
+              current_ordinal:
+                type: integer
+              duration_seconds:
+                type: integer
+              id:
+                type: string
+              job_description:
+                properties:
+                  company:
+                    type: string
+                  id:
+                    type: string
+                  title:
+                    type: string
+                required:
+                - id
+                - title
+                type: object
+              overall_score:
+                type: integer
+              question_count:
+                type: integer
+              question_duration_seconds:
+                type: integer
+              question_set:
+                properties:
+                  id:
+                    type: string
+                  target_role:
+                    type: string
+                required:
+                - id
+                type: object
+              resume:
+                properties:
+                  id:
+                    type: string
+                  title:
+                    type: string
+                required:
+                - id
+                - title
+                type: object
+              skipped_count:
+                type: integer
+              started_at:
+                type: string
+              status:
+                type: string
+              title:
+                type: string
+              turns:
+                items:
+                  properties:
+                    answer:
+                      type: string
+                    answered_at:
+                      type: string
+                    ordinal:
+                      type: integer
+                    question:
+                      type: string
+                    skipped_at:
+                      type: string
+                    started_at:
+                      type: string
+                    state:
+                      type: string
+                    time_spent_seconds:
+                      type: integer
+                  required:
+                  - ordinal
+                  - question
+                  - state
+                  - time_spent_seconds
+                  type: object
+                type: array
+              updated_at:
+                type: string
+            type: object
+      schemes:
+      - https
+      summary: Complete and lock an interview
   /api/v1/interviews/{id}/report:
     get:
       operationId: workspaceGetInterviewReport
@@ -424,6 +1127,8 @@ paths:
           description: ""
           schema:
             properties:
+              created_at:
+                type: string
               id:
                 type: string
               improvements:
@@ -440,6 +1145,8 @@ paths:
                 type: boolean
               session_id:
                 type: string
+              status:
+                type: string
               strengths:
                 items:
                   type: string
@@ -447,6 +1154,8 @@ paths:
               turns:
                 items:
                   properties:
+                    answer:
+                      type: string
                     critique:
                       type: string
                     evidence:
@@ -457,76 +1166,320 @@ paths:
                       type: string
                     ordinal:
                       type: integer
+                    question:
+                      type: string
                     score:
                       type: integer
                   required:
                   - ordinal
+                  - question
                   - score
                   - critique
                   - golden_answer
                   - evidence
                   type: object
                 type: array
+              updated_at:
+                type: string
             type: object
       schemes:
       - https
-      summary: GetInterviewReport
-  /api/v1/job-descriptions:
-    get:
-      operationId: workspaceListJobDescriptions
+      summary: Return or generate the unique interview report
+  /api/v1/interviews/{id}/turns/{ordinal}/answer:
+    put:
+      consumes:
+      - application/json
+      operationId: workspaceSaveInterviewAnswer
+      parameters:
+      - in: path
+        name: id
+        required: true
+        type: string
+      - in: path
+        name: ordinal
+        required: true
+        type: integer
+      - in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            answer:
+              type: string
+          required:
+          - answer
+          type: object
       produces:
       - application/json
       responses:
         "200":
           description: ""
           schema:
-            items:
-              properties:
-                capabilities:
-                  items:
-                    type: string
-                  type: array
-                company:
-                  type: string
-                content:
-                  type: string
-                created_at:
-                  type: string
-                id:
-                  type: string
-                title:
-                  type: string
-                updated_at:
-                  type: string
-              required:
-              - id
-              - title
-              - content
-              - capabilities
-              - created_at
-              - updated_at
-              type: object
             properties:
-              capabilities:
-                items:
-                  type: string
-                type: array
-              company:
-                type: string
-              content:
+              answered_count:
+                type: integer
+              completed_at:
                 type: string
               created_at:
                 type: string
+              current_ordinal:
+                type: integer
+              duration_seconds:
+                type: integer
               id:
+                type: string
+              job_description:
+                properties:
+                  company:
+                    type: string
+                  id:
+                    type: string
+                  title:
+                    type: string
+                required:
+                - id
+                - title
+                type: object
+              overall_score:
+                type: integer
+              question_count:
+                type: integer
+              question_duration_seconds:
+                type: integer
+              question_set:
+                properties:
+                  id:
+                    type: string
+                  target_role:
+                    type: string
+                required:
+                - id
+                type: object
+              resume:
+                properties:
+                  id:
+                    type: string
+                  title:
+                    type: string
+                required:
+                - id
+                - title
+                type: object
+              skipped_count:
+                type: integer
+              started_at:
+                type: string
+              status:
                 type: string
               title:
                 type: string
+              turns:
+                items:
+                  properties:
+                    answer:
+                      type: string
+                    answered_at:
+                      type: string
+                    ordinal:
+                      type: integer
+                    question:
+                      type: string
+                    skipped_at:
+                      type: string
+                    started_at:
+                      type: string
+                    state:
+                      type: string
+                    time_spent_seconds:
+                      type: integer
+                  required:
+                  - ordinal
+                  - question
+                  - state
+                  - time_spent_seconds
+                  type: object
+                type: array
               updated_at:
                 type: string
-            type: array
+            type: object
       schemes:
       - https
-      summary: ListJobDescriptions
+      summary: Save or overwrite a specific interview answer
+  /api/v1/interviews/{id}/turns/{ordinal}/skip:
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      operationId: workspaceSkipInterviewTurn
+      parameters:
+      - in: path
+        name: id
+        required: true
+        type: string
+      - in: path
+        name: ordinal
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              answered_count:
+                type: integer
+              completed_at:
+                type: string
+              created_at:
+                type: string
+              current_ordinal:
+                type: integer
+              duration_seconds:
+                type: integer
+              id:
+                type: string
+              job_description:
+                properties:
+                  company:
+                    type: string
+                  id:
+                    type: string
+                  title:
+                    type: string
+                required:
+                - id
+                - title
+                type: object
+              overall_score:
+                type: integer
+              question_count:
+                type: integer
+              question_duration_seconds:
+                type: integer
+              question_set:
+                properties:
+                  id:
+                    type: string
+                  target_role:
+                    type: string
+                required:
+                - id
+                type: object
+              resume:
+                properties:
+                  id:
+                    type: string
+                  title:
+                    type: string
+                required:
+                - id
+                - title
+                type: object
+              skipped_count:
+                type: integer
+              started_at:
+                type: string
+              status:
+                type: string
+              title:
+                type: string
+              turns:
+                items:
+                  properties:
+                    answer:
+                      type: string
+                    answered_at:
+                      type: string
+                    ordinal:
+                      type: integer
+                    question:
+                      type: string
+                    skipped_at:
+                      type: string
+                    started_at:
+                      type: string
+                    state:
+                      type: string
+                    time_spent_seconds:
+                      type: integer
+                  required:
+                  - ordinal
+                  - question
+                  - state
+                  - time_spent_seconds
+                  type: object
+                type: array
+              updated_at:
+                type: string
+            type: object
+      schemes:
+      - https
+      summary: Skip a specific interview turn
+  /api/v1/job-descriptions:
+    get:
+      operationId: workspaceListJobDescriptions
+      parameters:
+      - default: 1
+        example: 1
+        in: query
+        name: page
+        required: true
+        type: integer
+      - default: 20
+        example: 20
+        in: query
+        name: page_size
+        required: true
+        type: integer
+      - allowEmptyValue: true
+        in: query
+        name: sort
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              items:
+                items:
+                  properties:
+                    capabilities:
+                      items:
+                        type: string
+                      type: array
+                    company:
+                      type: string
+                    content:
+                      type: string
+                    created_at:
+                      type: string
+                    id:
+                      type: string
+                    title:
+                      type: string
+                    updated_at:
+                      type: string
+                  required:
+                  - id
+                  - title
+                  - content
+                  - capabilities
+                  - created_at
+                  - updated_at
+                  type: object
+                type: array
+              page:
+                type: integer
+              page_size:
+                type: integer
+              total:
+                type: integer
+            type: object
+      schemes:
+      - https
+      summary: List job descriptions with pagination
     post:
       consumes:
       - application/json
@@ -573,7 +1526,108 @@ paths:
             type: object
       schemes:
       - https
-      summary: CreateJobDescription
+      summary: Create a job description
+  /api/v1/job-descriptions/{id}:
+    delete:
+      consumes:
+      - application/x-www-form-urlencoded
+      operationId: workspaceDeleteJobDescription
+      parameters:
+      - in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema: {}
+      schemes:
+      - https
+      summary: Delete a job description while preserving history
+    get:
+      operationId: workspaceGetJobDescription
+      parameters:
+      - in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              capabilities:
+                items:
+                  type: string
+                type: array
+              company:
+                type: string
+              content:
+                type: string
+              created_at:
+                type: string
+              id:
+                type: string
+              title:
+                type: string
+              updated_at:
+                type: string
+            type: object
+      schemes:
+      - https
+      summary: Return a job description
+    patch:
+      consumes:
+      - application/json
+      operationId: workspaceUpdateJobDescription
+      parameters:
+      - in: path
+        name: id
+        required: true
+        type: string
+      - in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            company:
+              type: string
+            content:
+              type: string
+            title:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              capabilities:
+                items:
+                  type: string
+                type: array
+              company:
+                type: string
+              content:
+                type: string
+              created_at:
+                type: string
+              id:
+                type: string
+              title:
+                type: string
+              updated_at:
+                type: string
+            type: object
+      schemes:
+      - https
+      summary: Update a job description and re-extract capabilities
   /api/v1/me:
     get:
       operationId: workspaceMe
@@ -593,8 +1647,139 @@ paths:
             type: object
       schemes:
       - https
-      summary: Me
+      summary: Return the authenticated user profile
+    patch:
+      consumes:
+      - application/json
+      operationId: workspaceUpdateMe
+      parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            display_name:
+              type: string
+          required:
+          - display_name
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              display_name:
+                type: string
+              email:
+                type: string
+              id:
+                type: string
+            type: object
+      schemes:
+      - https
+      summary: Update the authenticated user profile
   /api/v1/question-sets:
+    get:
+      operationId: workspaceListQuestionSets
+      parameters:
+      - allowEmptyValue: true
+        in: query
+        items:
+          type: string
+        name: status
+        type: array
+      - allowEmptyValue: true
+        in: query
+        name: resume_id
+        type: string
+      - default: 1
+        example: 1
+        in: query
+        name: page
+        required: true
+        type: integer
+      - default: 20
+        example: 20
+        in: query
+        name: page_size
+        required: true
+        type: integer
+      - allowEmptyValue: true
+        in: query
+        name: sort
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              items:
+                items:
+                  properties:
+                    created_at:
+                      type: string
+                    id:
+                      type: string
+                    job_description:
+                      properties:
+                        company:
+                          type: string
+                        id:
+                          type: string
+                        title:
+                          type: string
+                      required:
+                      - id
+                      - title
+                      type: object
+                    job_description_id:
+                      type: string
+                    question_count:
+                      type: integer
+                    resume:
+                      properties:
+                        id:
+                          type: string
+                        title:
+                          type: string
+                      required:
+                      - id
+                      - title
+                      type: object
+                    resume_id:
+                      type: string
+                    source_question_set_id:
+                      type: string
+                    status:
+                      type: string
+                    target_role:
+                      type: string
+                    updated_at:
+                      type: string
+                  required:
+                  - id
+                  - resume_id
+                  - resume
+                  - status
+                  - question_count
+                  - created_at
+                  - updated_at
+                  type: object
+                type: array
+              page:
+                type: integer
+              page_size:
+                type: integer
+              total:
+                type: integer
+            type: object
+      schemes:
+      - https
+      summary: List question sets with pagination and filtering
     post:
       consumes:
       - application/json
@@ -625,8 +1810,22 @@ paths:
                 type: string
               id:
                 type: string
+              job_description:
+                properties:
+                  company:
+                    type: string
+                  id:
+                    type: string
+                  title:
+                    type: string
+                required:
+                - id
+                - title
+                type: object
               job_description_id:
                 type: string
+              question_count:
+                type: integer
               questions:
                 items:
                   properties:
@@ -650,17 +1849,347 @@ paths:
                   - question
                   - intent
                   - expected_points
-                  - follow_up_hint
                   type: object
                 type: array
+              resume:
+                properties:
+                  id:
+                    type: string
+                  title:
+                    type: string
+                required:
+                - id
+                - title
+                type: object
               resume_id:
                 type: string
+              source_question_set_id:
+                type: string
+              status:
+                type: string
               target_role:
+                type: string
+              updated_at:
                 type: string
             type: object
       schemes:
       - https
-      summary: CreateQuestionSet
+      summary: Generate a question set
+  /api/v1/question-sets/{id}:
+    delete:
+      consumes:
+      - application/x-www-form-urlencoded
+      operationId: workspaceDeleteQuestionSet
+      parameters:
+      - in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema: {}
+      schemes:
+      - https
+      summary: Delete an unused question set
+    get:
+      operationId: workspaceGetQuestionSet
+      parameters:
+      - in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              created_at:
+                type: string
+              id:
+                type: string
+              job_description:
+                properties:
+                  company:
+                    type: string
+                  id:
+                    type: string
+                  title:
+                    type: string
+                required:
+                - id
+                - title
+                type: object
+              job_description_id:
+                type: string
+              question_count:
+                type: integer
+              questions:
+                items:
+                  properties:
+                    expected_points:
+                      items:
+                        type: string
+                      type: array
+                    follow_up_hint:
+                      type: string
+                    id:
+                      type: string
+                    intent:
+                      type: string
+                    ordinal:
+                      type: integer
+                    question:
+                      type: string
+                  required:
+                  - id
+                  - ordinal
+                  - question
+                  - intent
+                  - expected_points
+                  type: object
+                type: array
+              resume:
+                properties:
+                  id:
+                    type: string
+                  title:
+                    type: string
+                required:
+                - id
+                - title
+                type: object
+              resume_id:
+                type: string
+              source_question_set_id:
+                type: string
+              status:
+                type: string
+              target_role:
+                type: string
+              updated_at:
+                type: string
+            type: object
+      schemes:
+      - https
+      summary: Return a question set and its questions
+    patch:
+      consumes:
+      - application/json
+      operationId: workspaceUpdateQuestionSet
+      parameters:
+      - in: path
+        name: id
+        required: true
+        type: string
+      - in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            questions:
+              items:
+                properties:
+                  expected_points:
+                    items:
+                      type: string
+                    type: array
+                  follow_up_hint:
+                    type: string
+                  intent:
+                    type: string
+                  ordinal:
+                    type: integer
+                  question:
+                    type: string
+                required:
+                - ordinal
+                - question
+                - intent
+                - expected_points
+                type: object
+              type: array
+            status:
+              type: string
+            target_role:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              created_at:
+                type: string
+              id:
+                type: string
+              job_description:
+                properties:
+                  company:
+                    type: string
+                  id:
+                    type: string
+                  title:
+                    type: string
+                required:
+                - id
+                - title
+                type: object
+              job_description_id:
+                type: string
+              question_count:
+                type: integer
+              questions:
+                items:
+                  properties:
+                    expected_points:
+                      items:
+                        type: string
+                      type: array
+                    follow_up_hint:
+                      type: string
+                    id:
+                      type: string
+                    intent:
+                      type: string
+                    ordinal:
+                      type: integer
+                    question:
+                      type: string
+                  required:
+                  - id
+                  - ordinal
+                  - question
+                  - intent
+                  - expected_points
+                  type: object
+                type: array
+              resume:
+                properties:
+                  id:
+                    type: string
+                  title:
+                    type: string
+                required:
+                - id
+                - title
+                type: object
+              resume_id:
+                type: string
+              source_question_set_id:
+                type: string
+              status:
+                type: string
+              target_role:
+                type: string
+              updated_at:
+                type: string
+            type: object
+      schemes:
+      - https
+      summary: Replace question-set content transactionally
+  /api/v1/question-sets/{id}/regenerate:
+    post:
+      consumes:
+      - application/json
+      operationId: workspaceRegenerateQuestionSet
+      parameters:
+      - in: path
+        name: id
+        required: true
+        type: string
+      - in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            job_description_id:
+              type: string
+            target_role:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              created_at:
+                type: string
+              id:
+                type: string
+              job_description:
+                properties:
+                  company:
+                    type: string
+                  id:
+                    type: string
+                  title:
+                    type: string
+                required:
+                - id
+                - title
+                type: object
+              job_description_id:
+                type: string
+              question_count:
+                type: integer
+              questions:
+                items:
+                  properties:
+                    expected_points:
+                      items:
+                        type: string
+                      type: array
+                    follow_up_hint:
+                      type: string
+                    id:
+                      type: string
+                    intent:
+                      type: string
+                    ordinal:
+                      type: integer
+                    question:
+                      type: string
+                  required:
+                  - id
+                  - ordinal
+                  - question
+                  - intent
+                  - expected_points
+                  type: object
+                type: array
+              resume:
+                properties:
+                  id:
+                    type: string
+                  title:
+                    type: string
+                required:
+                - id
+                - title
+                type: object
+              resume_id:
+                type: string
+              source_question_set_id:
+                type: string
+              status:
+                type: string
+              target_role:
+                type: string
+              updated_at:
+                type: string
+            type: object
+      schemes:
+      - https
+      summary: Regenerate a question set with lineage
   /api/v1/ready:
     get:
       operationId: systemReady
@@ -686,55 +2215,90 @@ paths:
   /api/v1/resumes:
     get:
       operationId: workspaceListResumes
+      parameters:
+      - allowEmptyValue: true
+        in: query
+        items:
+          type: string
+        name: status
+        type: array
+      - default: 1
+        example: 1
+        in: query
+        name: page
+        required: true
+        type: integer
+      - default: 20
+        example: 20
+        in: query
+        name: page_size
+        required: true
+        type: integer
+      - allowEmptyValue: true
+        in: query
+        name: sort
+        type: string
       produces:
       - application/json
       responses:
         "200":
           description: ""
           schema:
-            items:
-              properties:
-                created_at:
-                  type: string
-                file_name:
-                  type: string
-                id:
-                  type: string
-                status:
-                  type: string
-                title:
-                  type: string
-                updated_at:
-                  type: string
-                version_id:
-                  type: string
-              required:
-              - id
-              - title
-              - status
-              - created_at
-              - updated_at
-              type: object
             properties:
-              created_at:
-                type: string
-              file_name:
-                type: string
-              id:
-                type: string
-              status:
-                type: string
-              title:
-                type: string
-              updated_at:
-                type: string
-              version_id:
-                type: string
-            type: array
+              items:
+                items:
+                  properties:
+                    created_at:
+                      type: string
+                    file_name:
+                      type: string
+                    id:
+                      type: string
+                    status:
+                      type: string
+                    title:
+                      type: string
+                    updated_at:
+                      type: string
+                    version_id:
+                      type: string
+                  required:
+                  - id
+                  - title
+                  - status
+                  - created_at
+                  - updated_at
+                  type: object
+                type: array
+              page:
+                type: integer
+              page_size:
+                type: integer
+              total:
+                type: integer
+            type: object
       schemes:
       - https
-      summary: ListResumes
+      summary: List resumes with pagination and filtering
   /api/v1/resumes/{id}:
+    delete:
+      consumes:
+      - application/x-www-form-urlencoded
+      operationId: workspaceDeleteResume
+      parameters:
+      - in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema: {}
+      schemes:
+      - https
+      summary: Delete an unused resume
     get:
       operationId: workspaceGetResume
       parameters:
@@ -749,11 +2313,15 @@ paths:
           description: ""
           schema:
             properties:
+              content_type:
+                type: string
               created_at:
                 type: string
               facts:
                 items:
                   properties:
+                    confidence:
+                      type: number
                     excerpt:
                       type: string
                     key:
@@ -766,8 +2334,63 @@ paths:
                   - key
                   - value
                   - excerpt
+                  - confidence
                   type: object
                 type: array
+              file_name:
+                type: string
+              id:
+                type: string
+              parse_error:
+                type: string
+              processed_at:
+                type: string
+              size_bytes:
+                type: integer
+              status:
+                type: string
+              title:
+                type: string
+              updated_at:
+                type: string
+              uploaded_at:
+                type: string
+              version_id:
+                type: string
+              version_no:
+                type: integer
+            type: object
+      schemes:
+      - https
+      summary: Return resume metadata and extracted facts
+    patch:
+      consumes:
+      - application/json
+      operationId: workspaceUpdateResume
+      parameters:
+      - in: path
+        name: id
+        required: true
+        type: string
+      - in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            title:
+              type: string
+          required:
+          - title
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              created_at:
+                type: string
               file_name:
                 type: string
               id:
@@ -783,7 +2406,32 @@ paths:
             type: object
       schemes:
       - https
-      summary: GetResume
+      summary: Rename a resume
+  /api/v1/resumes/{id}/reparse:
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      operationId: workspaceReparseResume
+      parameters:
+      - in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              status:
+                type: string
+              task_id:
+                type: string
+            type: object
+      schemes:
+      - https
+      summary: Reparse the current resume version
   /api/v1/resumes/{id}/versions/{versionId}/complete:
     post:
       consumes:
@@ -812,7 +2460,7 @@ paths:
             type: object
       schemes:
       - https
-      summary: CompleteResumeUpload
+      summary: Complete a resume upload and enqueue parsing
   /api/v1/resumes/uploads:
     post:
       consumes:
@@ -860,7 +2508,108 @@ paths:
             type: object
       schemes:
       - https
-      summary: CreateResumeUpload
+      summary: Create a browser-direct resume upload
+  /api/v1/tasks:
+    get:
+      operationId: workspaceListTasks
+      parameters:
+      - allowEmptyValue: true
+        in: query
+        items:
+          type: string
+        name: status
+        type: array
+      - allowEmptyValue: true
+        in: query
+        name: type
+        type: string
+      - default: 1
+        example: 1
+        in: query
+        name: page
+        required: true
+        type: integer
+      - default: 20
+        example: 20
+        in: query
+        name: page_size
+        required: true
+        type: integer
+      - allowEmptyValue: true
+        in: query
+        name: sort
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              items:
+                items:
+                  properties:
+                    completed_at:
+                      type: string
+                    created_at:
+                      type: string
+                    error:
+                      properties:
+                        code:
+                          type: string
+                        message:
+                          type: string
+                      required:
+                      - code
+                      - message
+                      type: object
+                    id:
+                      type: string
+                    progress:
+                      type: integer
+                    reference:
+                      properties:
+                        id:
+                          type: string
+                        title:
+                          type: string
+                        type:
+                          type: string
+                      required:
+                      - type
+                      - id
+                      type: object
+                    result: {}
+                    retry_of_task_id:
+                      type: string
+                    started_at:
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      type: string
+                    updated_at:
+                      type: string
+                  required:
+                  - id
+                  - type
+                  - status
+                  - progress
+                  - reference
+                  - created_at
+                  - updated_at
+                  type: object
+                type: array
+              page:
+                type: integer
+              page_size:
+                type: integer
+              total:
+                type: integer
+            type: object
+      schemes:
+      - https
+      summary: List asynchronous tasks with pagination and filtering
   /api/v1/tasks/{id}:
     get:
       operationId: workspaceGetTask
@@ -876,27 +2625,82 @@ paths:
           description: ""
           schema:
             properties:
-              error:
+              completed_at:
                 type: string
+              created_at:
+                type: string
+              error:
+                properties:
+                  code:
+                    type: string
+                  message:
+                    type: string
+                required:
+                - code
+                - message
+                type: object
               id:
                 type: string
               progress:
                 type: integer
+              reference:
+                properties:
+                  id:
+                    type: string
+                  title:
+                    type: string
+                  type:
+                    type: string
+                required:
+                - type
+                - id
+                type: object
               result: {}
+              retry_of_task_id:
+                type: string
+              started_at:
+                type: string
               status:
                 type: string
               type:
                 type: string
+              updated_at:
+                type: string
             type: object
       schemes:
       - https
-      summary: GetTask
+      summary: Return asynchronous task state
+  /api/v1/tasks/{id}/retry:
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      operationId: workspaceRetryTask
+      parameters:
+      - in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              status:
+                type: string
+              task_id:
+                type: string
+            type: object
+      schemes:
+      - https
+      summary: Retry a supported failed task
 produces:
 - application/json
 schemes:
 - https
 swagger: "2.0"
-x-date: "2026-07-19 22:51:32"
+x-date: "2026-07-30 00:48:19"
 x-description: This is a goctl generated swagger file.
 x-github: https://github.com/zeromicro/go-zero
 x-go-zero-doc: https://go-zero.dev/

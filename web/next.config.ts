@@ -5,7 +5,6 @@ const apiBaseUrl = process.env.API_INTERNAL_BASE_URL ?? "http://localhost:8080";
 const nextConfig: NextConfig = {
   output: "standalone",
   reactStrictMode: true,
-  typedRoutes: true,
   async rewrites() {
     return [
       {

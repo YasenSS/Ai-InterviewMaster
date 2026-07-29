@@ -21,6 +21,13 @@ type ReadinessResponse {
 	Timestamp string `json:"timestamp"`
 }
 
+type ErrorResponse {
+	Code      string      `json:"code"`
+	Message   string      `json:"message"`
+	RequestId string      `json:"request_id,optional"`
+	Details   interface{} `json:"details,optional"`
+}
+
 type RegisterRequest {
 	Email       string `json:"email"`
 	Password    string `json:"password"`
@@ -30,6 +37,15 @@ type RegisterRequest {
 type LoginRequest {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+}
+
+type ChangePasswordRequest {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+}
+
+type UpdateMeRequest {
+	DisplayName string `json:"display_name"`
 }
 
 type AuthResponse {
@@ -43,6 +59,19 @@ type UserResponse {
 	Id          string `json:"id"`
 	Email       string `json:"email"`
 	DisplayName string `json:"display_name"`
+}
+
+type PageRequest {
+	Page     int    `form:"page,default=1"`
+	PageSize int    `form:"page_size,default=20"`
+	Sort     string `form:"sort,optional"`
+}
+
+type ResumeListRequest {
+	Status   []string `form:"status,optional"`
+	Page     int      `form:"page,default=1"`
+	PageSize int      `form:"page_size,default=20"`
+	Sort     string   `form:"sort,optional"`
 }
 
 type CreateResumeUploadRequest {
@@ -60,7 +89,7 @@ type CreateResumeUploadResponse {
 	ExpiresAt     string            `json:"expires_at"`
 }
 
-type CompleteResumeUploadResponse {
+type TaskAcceptedResponse {
 	TaskId string `json:"task_id"`
 	Status string `json:"status"`
 }
@@ -74,7 +103,12 @@ type CompleteResumeUploadRequest {
 	VersionId string `path:"versionId"`
 }
 
-type ResumeResponse {
+type UpdateResumeRequest {
+	Id    string `path:"id"`
+	Title string `json:"title"`
+}
+
+type ResumeSummaryResponse {
 	Id        string `json:"id"`
 	Title     string `json:"title"`
 	Status    string `json:"status"`
@@ -85,21 +119,46 @@ type ResumeResponse {
 }
 
 type ResumeFactResponse {
-	Type    string      `json:"type"`
-	Key     string      `json:"key"`
-	Value   interface{} `json:"value"`
-	Excerpt string      `json:"excerpt"`
+	Type       string      `json:"type"`
+	Key        string      `json:"key"`
+	Value      interface{} `json:"value"`
+	Excerpt    string      `json:"excerpt"`
+	Confidence float64     `json:"confidence"`
 }
 
 type ResumeDetailResponse {
-	ResumeResponse
-	Facts []ResumeFactResponse `json:"facts"`
+	ResumeSummaryResponse
+	VersionNo   int                  `json:"version_no,optional"`
+	ContentType string               `json:"content_type,optional"`
+	SizeBytes   int64                `json:"size_bytes,optional"`
+	UploadedAt  string               `json:"uploaded_at,optional"`
+	ProcessedAt string               `json:"processed_at,optional"`
+	ParseError  string               `json:"parse_error,optional"`
+	Facts       []ResumeFactResponse `json:"facts"`
 }
 
-type JobDescriptionRequest {
+type ResumePageResponse {
+	Items    []ResumeSummaryResponse `json:"items"`
+	Page     int                     `json:"page"`
+	PageSize int                     `json:"page_size"`
+	Total    int64                   `json:"total"`
+}
+
+type CreateJobDescriptionRequest {
 	Company string `json:"company,optional"`
 	Title   string `json:"title"`
 	Content string `json:"content"`
+}
+
+type UpdateJobDescriptionRequest {
+	Id      string `path:"id"`
+	Company string `json:"company,optional"`
+	Title   string `json:"title,optional"`
+	Content string `json:"content,optional"`
+}
+
+type JobDescriptionPath {
+	Id string `path:"id"`
 }
 
 type JobDescriptionResponse {
@@ -112,10 +171,25 @@ type JobDescriptionResponse {
 	UpdatedAt    string   `json:"updated_at"`
 }
 
+type JobDescriptionPageResponse {
+	Items    []JobDescriptionResponse `json:"items"`
+	Page     int                      `json:"page"`
+	PageSize int                      `json:"page_size"`
+	Total    int64                    `json:"total"`
+}
+
 type CreateQuestionSetRequest {
 	ResumeId         string `json:"resume_id"`
 	JobDescriptionId string `json:"job_description_id,optional"`
 	TargetRole       string `json:"target_role,optional"`
+}
+
+type QuestionInput {
+	Ordinal        int      `json:"ordinal"`
+	Question       string   `json:"question"`
+	Intent         string   `json:"intent"`
+	ExpectedPoints []string `json:"expected_points"`
+	FollowUpHint   string   `json:"follow_up_hint,optional"`
 }
 
 type QuestionResponse {
@@ -124,47 +198,133 @@ type QuestionResponse {
 	Question       string   `json:"question"`
 	Intent         string   `json:"intent"`
 	ExpectedPoints []string `json:"expected_points"`
-	FollowUpHint   string   `json:"follow_up_hint"`
+	FollowUpHint   string   `json:"follow_up_hint,optional"`
 }
 
-type QuestionSetResponse {
-	Id               string             `json:"id"`
-	ResumeId         string             `json:"resume_id"`
-	JobDescriptionId string             `json:"job_description_id,optional"`
-	TargetRole       string             `json:"target_role,optional"`
-	Questions        []QuestionResponse `json:"questions"`
-	CreatedAt        string             `json:"created_at"`
+type ResumeReferenceResponse {
+	Id    string `json:"id"`
+	Title string `json:"title"`
+}
+
+type JobDescriptionReferenceResponse {
+	Id      string `json:"id"`
+	Company string `json:"company,optional"`
+	Title   string `json:"title"`
+}
+
+type QuestionSetReferenceResponse {
+	Id         string `json:"id"`
+	TargetRole string `json:"target_role,optional"`
+}
+
+type QuestionSetSummaryResponse {
+	Id                  string                           `json:"id"`
+	ResumeId            string                           `json:"resume_id"`
+	JobDescriptionId    string                           `json:"job_description_id,optional"`
+	Resume              ResumeReferenceResponse          `json:"resume"`
+	JobDescription      *JobDescriptionReferenceResponse `json:"job_description,optional"`
+	TargetRole          string                           `json:"target_role,optional"`
+	Status              string                           `json:"status"`
+	QuestionCount       int                              `json:"question_count"`
+	SourceQuestionSetId string                           `json:"source_question_set_id,optional"`
+	CreatedAt           string                           `json:"created_at"`
+	UpdatedAt           string                           `json:"updated_at"`
+}
+
+type QuestionSetDetailResponse {
+	QuestionSetSummaryResponse
+	Questions []QuestionResponse `json:"questions"`
+}
+
+type QuestionSetListRequest {
+	Status   []string `form:"status,optional"`
+	ResumeId string   `form:"resume_id,optional"`
+	Page     int      `form:"page,default=1"`
+	PageSize int      `form:"page_size,default=20"`
+	Sort     string   `form:"sort,optional"`
+}
+
+type QuestionSetPageResponse {
+	Items    []QuestionSetSummaryResponse `json:"items"`
+	Page     int                          `json:"page"`
+	PageSize int                          `json:"page_size"`
+	Total    int64                        `json:"total"`
+}
+
+type QuestionSetPath {
+	Id string `path:"id"`
+}
+
+type UpdateQuestionSetRequest {
+	Id         string          `path:"id"`
+	TargetRole string          `json:"target_role,optional"`
+	Status     string          `json:"status,optional"`
+	Questions  []QuestionInput `json:"questions,optional"`
+}
+
+type RegenerateQuestionSetRequest {
+	Id               string `path:"id"`
+	JobDescriptionId string `json:"job_description_id,optional"`
+	TargetRole       string `json:"target_role,optional"`
 }
 
 type CreateInterviewRequest {
-	ResumeId         string `json:"resume_id"`
-	QuestionSetId    string `json:"question_set_id"`
-	JobDescriptionId string `json:"job_description_id,optional"`
-	Title            string `json:"title"`
-}
-
-type AnswerRequest {
-	Answer string `json:"answer"`
+	ResumeId                string `json:"resume_id"`
+	QuestionSetId           string `json:"question_set_id"`
+	JobDescriptionId        string `json:"job_description_id,optional"`
+	Title                   string `json:"title"`
+	QuestionDurationSeconds int    `json:"question_duration_seconds,optional"`
 }
 
 type InterviewTurnResponse {
-	Ordinal    int    `json:"ordinal"`
-	Question   string `json:"question"`
-	Answer     string `json:"answer,optional"`
-	AnsweredAt string `json:"answered_at,optional"`
+	Ordinal          int    `json:"ordinal"`
+	Question         string `json:"question"`
+	Answer           string `json:"answer,optional"`
+	State            string `json:"state"`
+	StartedAt        string `json:"started_at,optional"`
+	AnsweredAt       string `json:"answered_at,optional"`
+	SkippedAt        string `json:"skipped_at,optional"`
+	TimeSpentSeconds int    `json:"time_spent_seconds"`
+}
+
+type InterviewSummaryResponse {
+	Id              string                        `json:"id"`
+	Title           string                        `json:"title"`
+	Status          string                        `json:"status"`
+	QuestionSet     *QuestionSetReferenceResponse `json:"question_set,optional"`
+	Resume          ResumeReferenceResponse       `json:"resume"`
+	QuestionCount   int                           `json:"question_count"`
+	AnsweredCount   int                           `json:"answered_count"`
+	SkippedCount    int                           `json:"skipped_count"`
+	CurrentOrdinal  int                           `json:"current_ordinal"`
+	OverallScore    *int                          `json:"overall_score,optional"`
+	StartedAt       string                        `json:"started_at,optional"`
+	CompletedAt     string                        `json:"completed_at,optional"`
+	DurationSeconds int                           `json:"duration_seconds"`
+	CreatedAt       string                        `json:"created_at"`
+	UpdatedAt       string                        `json:"updated_at"`
 }
 
 type InterviewSessionResponse {
-	Id             string                  `json:"id"`
-	Title          string                  `json:"title"`
-	Status         string                  `json:"status"`
-	CurrentOrdinal int                     `json:"current_ordinal"`
-	Turns          []InterviewTurnResponse `json:"turns"`
-	CreatedAt      string                  `json:"created_at"`
+	InterviewSummaryResponse
+	JobDescription          *JobDescriptionReferenceResponse `json:"job_description,optional"`
+	QuestionDurationSeconds int                              `json:"question_duration_seconds"`
+	Turns                   []InterviewTurnResponse          `json:"turns"`
 }
 
 type InterviewPath {
 	Id string `path:"id"`
+}
+
+type InterviewTurnPath {
+	Id      string `path:"id"`
+	Ordinal int    `path:"ordinal"`
+}
+
+type SaveInterviewAnswerRequest {
+	Id      string `path:"id"`
+	Ordinal int    `path:"ordinal"`
+	Answer  string `json:"answer"`
 }
 
 type AnswerInterviewRequest {
@@ -172,8 +332,29 @@ type AnswerInterviewRequest {
 	Answer string `json:"answer"`
 }
 
+type CompleteInterviewRequest {
+	Id                string `path:"id"`
+	ConfirmIncomplete bool   `json:"confirm_incomplete"`
+}
+
+type InterviewListRequest {
+	Status   []string `form:"status,optional"`
+	Page     int      `form:"page,default=1"`
+	PageSize int      `form:"page_size,default=20"`
+	Sort     string   `form:"sort,optional"`
+}
+
+type InterviewPageResponse {
+	Items    []InterviewSummaryResponse `json:"items"`
+	Page     int                        `json:"page"`
+	PageSize int                        `json:"page_size"`
+	Total    int64                      `json:"total"`
+}
+
 type TurnReportResponse {
 	Ordinal      int      `json:"ordinal"`
+	Question     string   `json:"question"`
+	Answer       string   `json:"answer,optional"`
 	Score        int      `json:"score"`
 	Critique     string   `json:"critique"`
 	GoldenAnswer string   `json:"golden_answer"`
@@ -183,12 +364,90 @@ type TurnReportResponse {
 type InterviewReportResponse {
 	Id            string               `json:"id"`
 	SessionId     string               `json:"session_id"`
+	Status        string               `json:"status"`
 	OverallScore  int                  `json:"overall_score"`
 	Strengths     []string             `json:"strengths"`
 	Improvements  []string             `json:"improvements"`
 	NextSteps     []string             `json:"next_steps"`
 	QualityPassed bool                 `json:"quality_passed"`
 	Turns         []TurnReportResponse `json:"turns"`
+	CreatedAt     string               `json:"created_at"`
+	UpdatedAt     string               `json:"updated_at"`
+}
+
+type TaskPath {
+	Id string `path:"id"`
+}
+
+type TaskReferenceResponse {
+	Type  string `json:"type"`
+	Id    string `json:"id"`
+	Title string `json:"title,optional"`
+}
+
+type TaskErrorResponse {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+type TaskResponse {
+	Id            string                `json:"id"`
+	Type          string                `json:"type"`
+	Status        string                `json:"status"`
+	Progress      int                   `json:"progress"`
+	Reference     TaskReferenceResponse `json:"reference"`
+	Error         *TaskErrorResponse    `json:"error,optional"`
+	Result        interface{}           `json:"result,optional"`
+	RetryOfTaskId string                `json:"retry_of_task_id,optional"`
+	CreatedAt     string                `json:"created_at"`
+	UpdatedAt     string                `json:"updated_at"`
+	StartedAt     string                `json:"started_at,optional"`
+	CompletedAt   string                `json:"completed_at,optional"`
+}
+
+type TaskListRequest {
+	Status   []string `form:"status,optional"`
+	Type     string   `form:"type,optional"`
+	Page     int      `form:"page,default=1"`
+	PageSize int      `form:"page_size,default=20"`
+	Sort     string   `form:"sort,optional"`
+}
+
+type TaskPageResponse {
+	Items    []TaskResponse `json:"items"`
+	Page     int            `json:"page"`
+	PageSize int            `json:"page_size"`
+	Total    int64          `json:"total"`
+}
+
+type DashboardCountsResponse {
+	Resumes             int64 `json:"resumes"`
+	JobDescriptions     int64 `json:"job_descriptions"`
+	QuestionSets        int64 `json:"question_sets"`
+	Interviews          int64 `json:"interviews"`
+	CompletedInterviews int64 `json:"completed_interviews"`
+}
+
+type ScoreTrendResponse {
+	Date           string  `json:"date"`
+	AverageScore   float64 `json:"average_score"`
+	InterviewCount int64   `json:"interview_count"`
+}
+
+type ImprovementTopicResponse {
+	Label string `json:"label"`
+	Count int64  `json:"count"`
+}
+
+type DashboardSummaryResponse {
+	Counts                DashboardCountsResponse    `json:"counts"`
+	AverageScore          *float64                   `json:"average_score,optional"`
+	ScoreTrend            []ScoreTrendResponse       `json:"score_trend"`
+	ImprovementTopics     []ImprovementTopicResponse `json:"improvement_topics"`
+	RecentResumes         []ResumeSummaryResponse    `json:"recent_resumes"`
+	RecentJobDescriptions []JobDescriptionResponse   `json:"recent_job_descriptions"`
+	RecentInterviews      []InterviewSummaryResponse `json:"recent_interviews"`
+	ActiveTasks           []TaskResponse             `json:"active_tasks"`
 }
 
 type CompanyIntelRequest {
@@ -227,19 +486,6 @@ type ASRResponse {
 	Transcript string `json:"transcript,optional"`
 }
 
-type TaskPath {
-	Id string `path:"id"`
-}
-
-type TaskResponse {
-	Id       string      `json:"id"`
-	Type     string      `json:"type"`
-	Status   string      `json:"status"`
-	Progress int         `json:"progress"`
-	Error    string      `json:"error,optional"`
-	Result   interface{} `json:"result,optional"`
-}
-
 @server (
 	prefix: /api/v1
 	group:  system
@@ -259,11 +505,21 @@ service InterviewMaster {
 	group:  auth
 )
 service InterviewMaster {
+	@doc "Register a user and start a refresh session"
 	@handler Register
 	post /register (RegisterRequest) returns (AuthResponse)
 
+	@doc "Authenticate a user and start a refresh session"
 	@handler Login
 	post /login (LoginRequest) returns (AuthResponse)
+
+	@doc "Rotate the refresh session and issue a new access token"
+	@handler Refresh
+	post /refresh returns (AuthResponse)
+
+	@doc "Revoke the current refresh session"
+	@handler Logout
+	post /logout
 }
 
 @server (
@@ -272,52 +528,148 @@ service InterviewMaster {
 	group:  workspace
 )
 service InterviewMaster {
+	@doc "Return the authenticated user profile"
 	@handler Me
 	get /me returns (UserResponse)
 
+	@doc "Update the authenticated user profile"
+	@handler UpdateMe
+	patch /me (UpdateMeRequest) returns (UserResponse)
+
+	@doc "Change the authenticated user password"
+	@handler ChangePassword
+	post /auth/change-password (ChangePasswordRequest)
+
+	@doc "Create a browser-direct resume upload"
 	@handler CreateResumeUpload
 	post /resumes/uploads (CreateResumeUploadRequest) returns (CreateResumeUploadResponse)
 
+	@doc "Complete a resume upload and enqueue parsing"
 	@handler CompleteResumeUpload
-	post /resumes/:id/versions/:versionId/complete (CompleteResumeUploadRequest) returns (CompleteResumeUploadResponse)
+	post /resumes/:id/versions/:versionId/complete (CompleteResumeUploadRequest) returns (TaskAcceptedResponse)
 
+	@doc "List resumes with pagination and filtering"
 	@handler ListResumes
-	get /resumes returns ([]ResumeResponse)
+	get /resumes (ResumeListRequest) returns (ResumePageResponse)
 
+	@doc "Return resume metadata and extracted facts"
 	@handler GetResume
 	get /resumes/:id (ResumePath) returns (ResumeDetailResponse)
 
+	@doc "Rename a resume"
+	@handler UpdateResume
+	patch /resumes/:id (UpdateResumeRequest) returns (ResumeSummaryResponse)
+
+	@doc "Delete an unused resume"
+	@handler DeleteResume
+	delete /resumes/:id (ResumePath)
+
+	@doc "Reparse the current resume version"
+	@handler ReparseResume
+	post /resumes/:id/reparse (ResumePath) returns (TaskAcceptedResponse)
+
+	@doc "Create a job description"
 	@handler CreateJobDescription
-	post /job-descriptions (JobDescriptionRequest) returns (JobDescriptionResponse)
+	post /job-descriptions (CreateJobDescriptionRequest) returns (JobDescriptionResponse)
 
+	@doc "List job descriptions with pagination"
 	@handler ListJobDescriptions
-	get /job-descriptions returns ([]JobDescriptionResponse)
+	get /job-descriptions (PageRequest) returns (JobDescriptionPageResponse)
 
+	@doc "Return a job description"
+	@handler GetJobDescription
+	get /job-descriptions/:id (JobDescriptionPath) returns (JobDescriptionResponse)
+
+	@doc "Update a job description and re-extract capabilities"
+	@handler UpdateJobDescription
+	patch /job-descriptions/:id (UpdateJobDescriptionRequest) returns (JobDescriptionResponse)
+
+	@doc "Delete a job description while preserving history"
+	@handler DeleteJobDescription
+	delete /job-descriptions/:id (JobDescriptionPath)
+
+	@doc "Generate a question set"
 	@handler CreateQuestionSet
-	post /question-sets (CreateQuestionSetRequest) returns (QuestionSetResponse)
+	post /question-sets (CreateQuestionSetRequest) returns (QuestionSetDetailResponse)
 
+	@doc "List question sets with pagination and filtering"
+	@handler ListQuestionSets
+	get /question-sets (QuestionSetListRequest) returns (QuestionSetPageResponse)
+
+	@doc "Return a question set and its questions"
+	@handler GetQuestionSet
+	get /question-sets/:id (QuestionSetPath) returns (QuestionSetDetailResponse)
+
+	@doc "Replace question-set content transactionally"
+	@handler UpdateQuestionSet
+	patch /question-sets/:id (UpdateQuestionSetRequest) returns (QuestionSetDetailResponse)
+
+	@doc "Delete an unused question set"
+	@handler DeleteQuestionSet
+	delete /question-sets/:id (QuestionSetPath)
+
+	@doc "Regenerate a question set with lineage"
+	@handler RegenerateQuestionSet
+	post /question-sets/:id/regenerate (RegenerateQuestionSetRequest) returns (QuestionSetDetailResponse)
+
+	@doc "Create an interview from a question snapshot"
 	@handler CreateInterview
 	post /interviews (CreateInterviewRequest) returns (InterviewSessionResponse)
 
+	@doc "List interviews with aggregate progress"
+	@handler ListInterviews
+	get /interviews (InterviewListRequest) returns (InterviewPageResponse)
+
+	@doc "Return an interview with server timing state"
 	@handler GetInterview
 	get /interviews/:id (InterviewPath) returns (InterviewSessionResponse)
 
+	@doc "Save or overwrite a specific interview answer"
+	@handler SaveInterviewAnswer
+	put /interviews/:id/turns/:ordinal/answer (SaveInterviewAnswerRequest) returns (InterviewSessionResponse)
+
+	@doc "Skip a specific interview turn"
+	@handler SkipInterviewTurn
+	post /interviews/:id/turns/:ordinal/skip (InterviewTurnPath) returns (InterviewSessionResponse)
+
+	@doc "Complete and lock an interview"
+	@handler CompleteInterview
+	post /interviews/:id/complete (CompleteInterviewRequest) returns (InterviewSessionResponse)
+
+	@doc "Deprecated: use PUT /interviews/:id/turns/:ordinal/answer"
 	@handler AnswerInterview
 	post /interviews/:id/answer (AnswerInterviewRequest) returns (InterviewSessionResponse)
 
+	@doc "Return or generate the unique interview report"
 	@handler GetInterviewReport
 	get /interviews/:id/report (InterviewPath) returns (InterviewReportResponse)
 
+	@doc "List asynchronous tasks with pagination and filtering"
+	@handler ListTasks
+	get /tasks (TaskListRequest) returns (TaskPageResponse)
+
+	@doc "Return asynchronous task state"
+	@handler GetTask
+	get /tasks/:id (TaskPath) returns (TaskResponse)
+
+	@doc "Retry a supported failed task"
+	@handler RetryTask
+	post /tasks/:id/retry (TaskPath) returns (TaskAcceptedResponse)
+
+	@doc "Return the authenticated user's dashboard aggregates"
+	@handler DashboardSummary
+	get /dashboard/summary returns (DashboardSummaryResponse)
+
+	@doc "Search beta company interview intelligence"
 	@handler SearchCompanyIntel
 	post /beta/company-intel/search (CompanyIntelRequest) returns (CompanyIntelResponse)
 
+	@doc "Enqueue a beta ASR task"
 	@handler CreateASRTask
 	post /beta/asr/tasks (ASRRequest) returns (ASRResponse)
 
+	@doc "Create a browser-direct beta ASR upload"
 	@handler CreateASRUpload
 	post /beta/asr/uploads (ASRUploadRequest) returns (ASRUploadResponse)
-
-	@handler GetTask
-	get /tasks/:id (TaskPath) returns (TaskResponse)
 }
 

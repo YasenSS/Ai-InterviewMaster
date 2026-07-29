@@ -14,7 +14,7 @@ import (
 
 func CreateJobDescriptionHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req types.JobDescriptionRequest
+		var req types.CreateJobDescriptionRequest
 		if err := httpx.Parse(r, &req); err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)
 			return

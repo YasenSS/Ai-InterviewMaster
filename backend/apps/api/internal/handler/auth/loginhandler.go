@@ -1,12 +1,9 @@
-// Code scaffolded by goctl. Safe to edit.
-// goctl 1.10.1
-
 package auth
 
 import (
 	"net/http"
 
-	"github.com/interviewmaster/interviewmaster/backend/apps/api/internal/logic/auth"
+	authlogic "github.com/interviewmaster/interviewmaster/backend/apps/api/internal/logic/auth"
 	"github.com/interviewmaster/interviewmaster/backend/apps/api/internal/svc"
 	"github.com/interviewmaster/interviewmaster/backend/apps/api/internal/types"
 	"github.com/zeromicro/go-zero/rest/httpx"
@@ -19,13 +16,13 @@ func LoginHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			httpx.ErrorCtx(r.Context(), w, err)
 			return
 		}
-
-		l := auth.NewLoginLogic(r.Context(), svcCtx)
-		resp, err := l.Login(&req)
+		logic := authlogic.NewLoginLogic(r.Context(), svcCtx)
+		result, err := logic.LoginWithSession(&req, remoteIP(r))
 		if err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)
-		} else {
-			httpx.OkJsonCtx(r.Context(), w, resp)
+			return
 		}
+		http.SetCookie(w, refreshCookie(svcCtx.Config, result.RefreshToken))
+		httpx.OkJsonCtx(r.Context(), w, result.Response)
 	}
 }

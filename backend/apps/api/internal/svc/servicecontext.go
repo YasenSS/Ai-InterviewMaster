@@ -6,22 +6,23 @@ package svc
 import (
 	"context"
 
+	"github.com/hibiken/asynq"
 	"github.com/interviewmaster/interviewmaster/backend/apps/api/internal/config"
 	"github.com/interviewmaster/interviewmaster/backend/internal/platform/cache"
 	"github.com/interviewmaster/interviewmaster/backend/internal/platform/database"
 	"github.com/interviewmaster/interviewmaster/backend/internal/platform/objectstore"
-	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/minio/minio-go/v7"
 	"github.com/redis/go-redis/v9"
 )
 
 type ServiceContext struct {
-	Config   config.Config
-	Database *pgxpool.Pool
-	Redis    *redis.Client
-	ObjectStore *minio.Client
-	TaskClient *asynq.Client
+	Config       config.Config
+	Database     *pgxpool.Pool
+	Redis        *redis.Client
+	ObjectStore  *minio.Client
+	UploadSigner *minio.Client
+	TaskClient   *asynq.Client
 }
 
 func NewServiceContext(ctx context.Context, c config.Config) (*ServiceContext, error) {
@@ -30,13 +31,26 @@ func NewServiceContext(ctx context.Context, c config.Config) (*ServiceContext, e
 		return nil, err
 	}
 	store, err := objectstore.New(c.Runtime.ObjectStore)
-	if err != nil { pool.Close(); return nil, err }
+	if err != nil {
+		pool.Close()
+		return nil, err
+	}
+	signerSettings := c.Runtime.ObjectStore
+	if signerSettings.PublicEndpoint != "" {
+		signerSettings.Endpoint = signerSettings.PublicEndpoint
+	}
+	uploadSigner, err := objectstore.New(signerSettings)
+	if err != nil {
+		pool.Close()
+		return nil, err
+	}
 	return &ServiceContext{
-		Config:   c,
-		Database: pool,
-		Redis:    cache.NewRedis(c.Runtime.Redis),
-		ObjectStore: store,
-		TaskClient: asynq.NewClient(asynq.RedisClientOpt{Addr:c.Runtime.Redis.Addr, Password:c.Runtime.Redis.Password, DB:c.Runtime.Redis.DB}),
+		Config:       c,
+		Database:     pool,
+		Redis:        cache.NewRedis(c.Runtime.Redis),
+		ObjectStore:  store,
+		UploadSigner: uploadSigner,
+		TaskClient:   asynq.NewClient(asynq.RedisClientOpt{Addr: c.Runtime.Redis.Addr, Password: c.Runtime.Redis.Password, DB: c.Runtime.Redis.DB}),
 	}, nil
 }
 

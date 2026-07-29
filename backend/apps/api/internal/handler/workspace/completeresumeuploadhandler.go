@@ -15,7 +15,10 @@ import (
 func CompleteResumeUploadHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req types.CompleteResumeUploadRequest
-		if err := httpx.Parse(r, &req); err != nil { httpx.ErrorCtx(r.Context(), w, err); return }
+		if err := httpx.Parse(r, &req); err != nil {
+			httpx.ErrorCtx(r.Context(), w, err)
+			return
+		}
 		l := workspace.NewCompleteResumeUploadLogic(r.Context(), svcCtx)
 		resp, err := l.CompleteResumeUpload(&req)
 		if err != nil {

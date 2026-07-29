@@ -30,6 +30,13 @@ func NewSearchCompanyIntelLogic(ctx context.Context, svcCtx *svc.ServiceContext)
 }
 
 func (l *SearchCompanyIntelLogic) SearchCompanyIntel(req *types.CompanyIntelRequest) (resp *types.CompanyIntelResponse, err error) {
-	if _,err:=currentUserID(l.ctx);err!=nil{return nil,err};company:=strings.TrimSpace(req.Company);role:=strings.TrimSpace(req.Role);if company==""||role==""{return nil,fmt.Errorf("company and role are required")}
-	return &types.CompanyIntelResponse{Company:company,Role:role,Topics:[]string{"项目深挖","系统设计","行为面试"},Questions:[]string{fmt.Sprintf("为什么选择 %s 的 %s 岗位？",company,role),"请设计一个可扩展的核心业务系统。","描述一次线上故障的定位与复盘。"},Freshness:time.Now().UTC().Format(time.RFC3339)},nil
+	if _, err := currentUserID(l.ctx); err != nil {
+		return nil, err
+	}
+	company := strings.TrimSpace(req.Company)
+	role := strings.TrimSpace(req.Role)
+	if company == "" || role == "" {
+		return nil, fmt.Errorf("company and role are required")
+	}
+	return &types.CompanyIntelResponse{Company: company, Role: role, Topics: []string{"项目深挖", "系统设计", "行为面试"}, Questions: []string{fmt.Sprintf("为什么选择 %s 的 %s 岗位？", company, role), "请设计一个可扩展的核心业务系统。", "描述一次线上故障的定位与复盘。"}, Freshness: time.Now().UTC().Format(time.RFC3339)}, nil
 }

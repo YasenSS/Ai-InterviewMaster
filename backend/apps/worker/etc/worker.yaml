@@ -12,6 +12,7 @@ Runtime:
     DB: 0
   ObjectStore:
     Endpoint: http://localhost:9000
+    PublicEndpoint: http://localhost:9000
     Region: us-east-1
     Bucket: interviewmaster-local
     AccessKey: interviewmaster

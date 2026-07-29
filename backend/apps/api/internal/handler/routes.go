@@ -18,11 +18,25 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 	server.AddRoutes(
 		[]rest.Route{
 			{
+				// Authenticate a user and start a refresh session
 				Method:  http.MethodPost,
 				Path:    "/login",
 				Handler: auth.LoginHandler(serverCtx),
 			},
 			{
+				// Revoke the current refresh session
+				Method:  http.MethodPost,
+				Path:    "/logout",
+				Handler: auth.LogoutHandler(serverCtx),
+			},
+			{
+				// Rotate the refresh session and issue a new access token
+				Method:  http.MethodPost,
+				Path:    "/refresh",
+				Handler: auth.RefreshHandler(serverCtx),
+			},
+			{
+				// Register a user and start a refresh session
 				Method:  http.MethodPost,
 				Path:    "/register",
 				Handler: auth.RegisterHandler(serverCtx),
@@ -52,84 +66,220 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 	server.AddRoutes(
 		[]rest.Route{
 			{
+				// Change the authenticated user password
+				Method:  http.MethodPost,
+				Path:    "/auth/change-password",
+				Handler: workspace.ChangePasswordHandler(serverCtx),
+			},
+			{
+				// Enqueue a beta ASR task
 				Method:  http.MethodPost,
 				Path:    "/beta/asr/tasks",
 				Handler: workspace.CreateASRTaskHandler(serverCtx),
 			},
 			{
+				// Create a browser-direct beta ASR upload
 				Method:  http.MethodPost,
 				Path:    "/beta/asr/uploads",
 				Handler: workspace.CreateASRUploadHandler(serverCtx),
 			},
 			{
+				// Search beta company interview intelligence
 				Method:  http.MethodPost,
 				Path:    "/beta/company-intel/search",
 				Handler: workspace.SearchCompanyIntelHandler(serverCtx),
 			},
 			{
+				// Return the authenticated user's dashboard aggregates
+				Method:  http.MethodGet,
+				Path:    "/dashboard/summary",
+				Handler: workspace.DashboardSummaryHandler(serverCtx),
+			},
+			{
+				// Create an interview from a question snapshot
 				Method:  http.MethodPost,
 				Path:    "/interviews",
 				Handler: workspace.CreateInterviewHandler(serverCtx),
 			},
 			{
+				// List interviews with aggregate progress
+				Method:  http.MethodGet,
+				Path:    "/interviews",
+				Handler: workspace.ListInterviewsHandler(serverCtx),
+			},
+			{
+				// Return an interview with server timing state
 				Method:  http.MethodGet,
 				Path:    "/interviews/:id",
 				Handler: workspace.GetInterviewHandler(serverCtx),
 			},
 			{
+				// Deprecated: use PUT /interviews/:id/turns/:ordinal/answer
 				Method:  http.MethodPost,
 				Path:    "/interviews/:id/answer",
 				Handler: workspace.AnswerInterviewHandler(serverCtx),
 			},
 			{
+				// Complete and lock an interview
+				Method:  http.MethodPost,
+				Path:    "/interviews/:id/complete",
+				Handler: workspace.CompleteInterviewHandler(serverCtx),
+			},
+			{
+				// Return or generate the unique interview report
 				Method:  http.MethodGet,
 				Path:    "/interviews/:id/report",
 				Handler: workspace.GetInterviewReportHandler(serverCtx),
 			},
 			{
+				// Save or overwrite a specific interview answer
+				Method:  http.MethodPut,
+				Path:    "/interviews/:id/turns/:ordinal/answer",
+				Handler: workspace.SaveInterviewAnswerHandler(serverCtx),
+			},
+			{
+				// Skip a specific interview turn
+				Method:  http.MethodPost,
+				Path:    "/interviews/:id/turns/:ordinal/skip",
+				Handler: workspace.SkipInterviewTurnHandler(serverCtx),
+			},
+			{
+				// Create a job description
 				Method:  http.MethodPost,
 				Path:    "/job-descriptions",
 				Handler: workspace.CreateJobDescriptionHandler(serverCtx),
 			},
 			{
+				// List job descriptions with pagination
 				Method:  http.MethodGet,
 				Path:    "/job-descriptions",
 				Handler: workspace.ListJobDescriptionsHandler(serverCtx),
 			},
 			{
+				// Return a job description
+				Method:  http.MethodGet,
+				Path:    "/job-descriptions/:id",
+				Handler: workspace.GetJobDescriptionHandler(serverCtx),
+			},
+			{
+				// Update a job description and re-extract capabilities
+				Method:  http.MethodPatch,
+				Path:    "/job-descriptions/:id",
+				Handler: workspace.UpdateJobDescriptionHandler(serverCtx),
+			},
+			{
+				// Delete a job description while preserving history
+				Method:  http.MethodDelete,
+				Path:    "/job-descriptions/:id",
+				Handler: workspace.DeleteJobDescriptionHandler(serverCtx),
+			},
+			{
+				// Return the authenticated user profile
 				Method:  http.MethodGet,
 				Path:    "/me",
 				Handler: workspace.MeHandler(serverCtx),
 			},
 			{
+				// Update the authenticated user profile
+				Method:  http.MethodPatch,
+				Path:    "/me",
+				Handler: workspace.UpdateMeHandler(serverCtx),
+			},
+			{
+				// Generate a question set
 				Method:  http.MethodPost,
 				Path:    "/question-sets",
 				Handler: workspace.CreateQuestionSetHandler(serverCtx),
 			},
 			{
+				// List question sets with pagination and filtering
+				Method:  http.MethodGet,
+				Path:    "/question-sets",
+				Handler: workspace.ListQuestionSetsHandler(serverCtx),
+			},
+			{
+				// Return a question set and its questions
+				Method:  http.MethodGet,
+				Path:    "/question-sets/:id",
+				Handler: workspace.GetQuestionSetHandler(serverCtx),
+			},
+			{
+				// Replace question-set content transactionally
+				Method:  http.MethodPatch,
+				Path:    "/question-sets/:id",
+				Handler: workspace.UpdateQuestionSetHandler(serverCtx),
+			},
+			{
+				// Delete an unused question set
+				Method:  http.MethodDelete,
+				Path:    "/question-sets/:id",
+				Handler: workspace.DeleteQuestionSetHandler(serverCtx),
+			},
+			{
+				// Regenerate a question set with lineage
+				Method:  http.MethodPost,
+				Path:    "/question-sets/:id/regenerate",
+				Handler: workspace.RegenerateQuestionSetHandler(serverCtx),
+			},
+			{
+				// List resumes with pagination and filtering
 				Method:  http.MethodGet,
 				Path:    "/resumes",
 				Handler: workspace.ListResumesHandler(serverCtx),
 			},
 			{
+				// Return resume metadata and extracted facts
 				Method:  http.MethodGet,
 				Path:    "/resumes/:id",
 				Handler: workspace.GetResumeHandler(serverCtx),
 			},
 			{
+				// Rename a resume
+				Method:  http.MethodPatch,
+				Path:    "/resumes/:id",
+				Handler: workspace.UpdateResumeHandler(serverCtx),
+			},
+			{
+				// Delete an unused resume
+				Method:  http.MethodDelete,
+				Path:    "/resumes/:id",
+				Handler: workspace.DeleteResumeHandler(serverCtx),
+			},
+			{
+				// Reparse the current resume version
+				Method:  http.MethodPost,
+				Path:    "/resumes/:id/reparse",
+				Handler: workspace.ReparseResumeHandler(serverCtx),
+			},
+			{
+				// Complete a resume upload and enqueue parsing
 				Method:  http.MethodPost,
 				Path:    "/resumes/:id/versions/:versionId/complete",
 				Handler: workspace.CompleteResumeUploadHandler(serverCtx),
 			},
 			{
+				// Create a browser-direct resume upload
 				Method:  http.MethodPost,
 				Path:    "/resumes/uploads",
 				Handler: workspace.CreateResumeUploadHandler(serverCtx),
 			},
 			{
+				// List asynchronous tasks with pagination and filtering
+				Method:  http.MethodGet,
+				Path:    "/tasks",
+				Handler: workspace.ListTasksHandler(serverCtx),
+			},
+			{
+				// Return asynchronous task state
 				Method:  http.MethodGet,
 				Path:    "/tasks/:id",
 				Handler: workspace.GetTaskHandler(serverCtx),
+			},
+			{
+				// Retry a supported failed task
+				Method:  http.MethodPost,
+				Path:    "/tasks/:id/retry",
+				Handler: workspace.RetryTaskHandler(serverCtx),
 			},
 		},
 		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),

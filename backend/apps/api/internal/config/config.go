@@ -11,8 +11,10 @@ import (
 type Config struct {
 	rest.RestConf
 	Runtime appconfig.Settings
-	Auth struct {
-		AccessSecret string
-		AccessExpire int64
+	Auth    struct {
+		AccessSecret      string
+		AccessExpire      int64
+		RefreshExpire     int64
+		RefreshCookieName string
 	}
 }

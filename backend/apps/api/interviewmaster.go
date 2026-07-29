@@ -7,6 +7,7 @@ import (
 	"context"
 	"flag"
 	"log/slog"
+	"net/http"
 	"os/signal"
 	"syscall"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"github.com/interviewmaster/interviewmaster/backend/internal/platform/apperror"
 	"github.com/interviewmaster/interviewmaster/backend/internal/platform/logging"
 	"github.com/interviewmaster/interviewmaster/backend/internal/platform/requestid"
+	"github.com/interviewmaster/interviewmaster/backend/internal/platform/statuscode"
 	"github.com/interviewmaster/interviewmaster/backend/internal/platform/telemetry"
 
 	"github.com/zeromicro/go-zero/core/conf"
@@ -59,10 +61,23 @@ func main() {
 
 	httpx.SetErrorHandlerCtx(apperror.HTTPResponse)
 
-	server := rest.MustNewServer(c.RestConf, rest.WithCors(c.Runtime.HTTP.AllowedOrigins...))
+	server := rest.MustNewServer(
+		c.RestConf,
+		rest.WithCors(c.Runtime.HTTP.AllowedOrigins...),
+		rest.WithUnauthorizedCallback(func(w http.ResponseWriter, r *http.Request, _ error) {
+			r = requestid.Ensure(w, r)
+			status, body := apperror.HTTPResponse(
+				r.Context(),
+				apperror.Unauthorized("AUTH_REQUIRED", "Access Token 无效或已过期"),
+			)
+			httpx.WriteJsonCtx(r.Context(), w, status, body)
+		}),
+	)
 	defer server.Stop()
 	server.Use(requestid.Middleware)
 	server.Use(telemetry.HTTPMiddleware(c.Runtime.ServiceName))
+	server.Use(logging.HTTPMiddleware(c.Auth.AccessSecret))
+	server.Use(statuscode.Middleware)
 
 	serviceContext, err := svc.NewServiceContext(ctx, c)
 	if err != nil {
