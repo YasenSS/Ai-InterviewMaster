@@ -21,6 +21,15 @@ Runtime:
   Parser:
     TikaURL: http://localhost:9998
     ASRURL: http://localhost:9002
+  AI:
+    Enabled: false
+    Provider: openai-compatible
+    BaseURL: https://api.openai.com/v1
+    APIKey: ""
+    ChatModel: gpt-4.1-mini
+    RequestTimeout: 30s
+    MaxOutputTokens: 4096
+    StructuredOutputs: true
   Security:
     JWTSigningKey: development-only-replace-before-production-32chars
   Telemetry:

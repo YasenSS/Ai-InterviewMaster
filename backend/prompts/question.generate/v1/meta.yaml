@@ -1,0 +1,5 @@
+prompt_key: question.generate
+version: v1
+temperature: 0.3
+max_output_tokens: 3000
+schema: schema.json

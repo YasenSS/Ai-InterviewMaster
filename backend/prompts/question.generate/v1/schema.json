@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "questions": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "ordinal": { "type": "integer", "minimum": 1, "maximum": 5 },
+          "question": { "type": "string", "minLength": 1, "maxLength": 2000 },
+          "intent": { "type": "string", "minLength": 1, "maxLength": 1000 },
+          "expected_points": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 5,
+            "items": { "type": "string", "minLength": 1, "maxLength": 500 }
+          },
+          "follow_up_hint": { "type": "string", "minLength": 1, "maxLength": 1000 }
+        },
+        "required": ["ordinal", "question", "intent", "expected_points", "follow_up_hint"]
+      }
+    }
+  },
+  "required": ["questions"]
+}

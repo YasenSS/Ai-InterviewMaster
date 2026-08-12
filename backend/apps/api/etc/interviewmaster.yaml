@@ -1,7 +1,9 @@
 Name: interviewmaster-api
 Host: 0.0.0.0
 Port: 8080
-Timeout: 10000
+# The first Eino-backed question generation path is synchronous for now. Keep the
+# HTTP deadline above Runtime.AI.RequestTimeout until it moves to the worker.
+Timeout: 45000
 Mode: dev
 Log:
   ServiceName: interviewmaster-api
@@ -31,6 +33,15 @@ Runtime:
   Parser:
     TikaURL: http://localhost:9998
     ASRURL: http://localhost:9002
+  AI:
+    Enabled: false
+    Provider: openai-compatible
+    BaseURL: https://api.openai.com/v1
+    APIKey: ""
+    ChatModel: gpt-4.1-mini
+    RequestTimeout: 30s
+    MaxOutputTokens: 4096
+    StructuredOutputs: true
   Security:
     JWTSigningKey: development-only-replace-before-production-32chars
   Telemetry:

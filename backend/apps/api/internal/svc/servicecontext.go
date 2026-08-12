@@ -8,6 +8,8 @@ import (
 
 	"github.com/hibiken/asynq"
 	"github.com/interviewmaster/interviewmaster/backend/apps/api/internal/config"
+	platformai "github.com/interviewmaster/interviewmaster/backend/internal/platform/ai"
+	"github.com/interviewmaster/interviewmaster/backend/internal/platform/ai/provider"
 	"github.com/interviewmaster/interviewmaster/backend/internal/platform/cache"
 	"github.com/interviewmaster/interviewmaster/backend/internal/platform/database"
 	"github.com/interviewmaster/interviewmaster/backend/internal/platform/objectstore"
@@ -23,6 +25,7 @@ type ServiceContext struct {
 	ObjectStore  *minio.Client
 	UploadSigner *minio.Client
 	TaskClient   *asynq.Client
+	ChatModel    platformai.ChatModel
 }
 
 func NewServiceContext(ctx context.Context, c config.Config) (*ServiceContext, error) {
@@ -44,6 +47,22 @@ func NewServiceContext(ctx context.Context, c config.Config) (*ServiceContext, e
 		pool.Close()
 		return nil, err
 	}
+	var chatModel platformai.ChatModel
+	if c.Runtime.AI.Enabled {
+		chatModel, err = provider.NewOpenAI(ctx, provider.OpenAIConfig{
+			Provider:          c.Runtime.AI.Provider,
+			BaseURL:           c.Runtime.AI.BaseURL,
+			APIKey:            c.Runtime.AI.APIKey,
+			Model:             c.Runtime.AI.ChatModel,
+			Timeout:           c.Runtime.AI.RequestTimeout,
+			MaxOutputTokens:   c.Runtime.AI.MaxOutputTokens,
+			StructuredOutputs: c.Runtime.AI.StructuredOutputs,
+		})
+		if err != nil {
+			pool.Close()
+			return nil, err
+		}
+	}
 	return &ServiceContext{
 		Config:       c,
 		Database:     pool,
@@ -51,6 +70,7 @@ func NewServiceContext(ctx context.Context, c config.Config) (*ServiceContext, e
 		ObjectStore:  store,
 		UploadSigner: uploadSigner,
 		TaskClient:   asynq.NewClient(asynq.RedisClientOpt{Addr: c.Runtime.Redis.Addr, Password: c.Runtime.Redis.Password, DB: c.Runtime.Redis.DB}),
+		ChatModel:    chatModel,
 	}, nil
 }
 

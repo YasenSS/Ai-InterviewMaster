@@ -223,7 +223,7 @@ func createQuestionSet(
 	if err != nil {
 		return nil, err
 	}
-	questions, err := validateQuestionInputs(generatedQuestions())
+	questions, err := questionsForMaterials(ctx, svcCtx, userID, req.ResumeId, req.JobDescriptionId, targetRole)
 	if err != nil {
 		return nil, err
 	}
@@ -631,7 +631,7 @@ func regenerateQuestionSet(
 	if err != nil {
 		return nil, err
 	}
-	questions, err := validateQuestionInputs(generatedQuestions())
+	questions, err := questionsForMaterials(ctx, svcCtx, userID, resumeID, jobID, targetRole)
 	if err != nil {
 		return nil, err
 	}

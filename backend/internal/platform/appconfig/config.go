@@ -15,6 +15,7 @@ type Settings struct {
 	Redis       Redis
 	ObjectStore ObjectStore
 	Parser      Parser
+	AI          AI
 	Security    Security
 	Telemetry   Telemetry
 	HTTP        HTTP
@@ -48,6 +49,19 @@ type Parser struct {
 	ASRURL  string
 }
 
+// AI contains provider-neutral model settings. Provider-specific SDK types
+// deliberately stay in internal/platform/ai/provider.
+type AI struct {
+	Enabled           bool
+	Provider          string
+	BaseURL           string
+	APIKey            string
+	ChatModel         string
+	RequestTimeout    time.Duration
+	MaxOutputTokens   int
+	StructuredOutputs bool
+}
+
 type Security struct {
 	JWTSigningKey string
 }
@@ -76,6 +90,10 @@ func ApplyEnv(s *Settings) error {
 	overrideString("IM_S3_SECRET_KEY", &s.ObjectStore.SecretKey)
 	overrideString("IM_TIKA_URL", &s.Parser.TikaURL)
 	overrideString("IM_ASR_URL", &s.Parser.ASRURL)
+	overrideString("IM_AI_PROVIDER", &s.AI.Provider)
+	overrideString("IM_AI_BASE_URL", &s.AI.BaseURL)
+	overrideString("IM_AI_API_KEY", &s.AI.APIKey)
+	overrideString("IM_AI_CHAT_MODEL", &s.AI.ChatModel)
 	overrideString("IM_JWT_SIGNING_KEY", &s.Security.JWTSigningKey)
 	overrideString("IM_OTEL_ENDPOINT", &s.Telemetry.Endpoint)
 
@@ -89,6 +107,18 @@ func ApplyEnv(s *Settings) error {
 		return err
 	}
 	if err := overrideBool("IM_OTEL_INSECURE", &s.Telemetry.Insecure); err != nil {
+		return err
+	}
+	if err := overrideBool("IM_AI_ENABLED", &s.AI.Enabled); err != nil {
+		return err
+	}
+	if err := overrideBool("IM_AI_STRUCTURED_OUTPUTS", &s.AI.StructuredOutputs); err != nil {
+		return err
+	}
+	if err := overrideInt("IM_AI_MAX_OUTPUT_TOKENS", &s.AI.MaxOutputTokens); err != nil {
+		return err
+	}
+	if err := overrideDuration("IM_AI_REQUEST_TIMEOUT", &s.AI.RequestTimeout); err != nil {
 		return err
 	}
 
@@ -121,6 +151,24 @@ func (s Settings) Validate() error {
 	if s.Telemetry.Enabled && strings.TrimSpace(s.Telemetry.Endpoint) == "" {
 		return fmt.Errorf("OpenTelemetry endpoint is required when telemetry is enabled")
 	}
+	if s.AI.Enabled {
+		if !strings.EqualFold(strings.TrimSpace(s.AI.Provider), "openai") &&
+			!strings.EqualFold(strings.TrimSpace(s.AI.Provider), "openai-compatible") {
+			return fmt.Errorf("AI provider must be openai or openai-compatible")
+		}
+		if strings.TrimSpace(s.AI.APIKey) == "" {
+			return fmt.Errorf("AI API key is required when AI is enabled")
+		}
+		if strings.TrimSpace(s.AI.ChatModel) == "" {
+			return fmt.Errorf("AI chat model is required when AI is enabled")
+		}
+		if s.AI.RequestTimeout <= 0 {
+			return fmt.Errorf("AI request timeout must be positive when AI is enabled")
+		}
+		if s.AI.MaxOutputTokens < 1 {
+			return fmt.Errorf("AI max output tokens must be positive when AI is enabled")
+		}
+	}
 	return nil
 }
 
@@ -149,6 +197,19 @@ func overrideInt(name string, target *int) error {
 		return nil
 	}
 	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return fmt.Errorf("parse %s: %w", name, err)
+	}
+	*target = parsed
+	return nil
+}
+
+func overrideDuration(name string, target *time.Duration) error {
+	value, ok := os.LookupEnv(name)
+	if !ok || strings.TrimSpace(value) == "" {
+		return nil
+	}
+	parsed, err := time.ParseDuration(value)
 	if err != nil {
 		return fmt.Errorf("parse %s: %w", name, err)
 	}
