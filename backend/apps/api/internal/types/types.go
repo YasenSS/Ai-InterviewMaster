@@ -166,6 +166,10 @@ type InterviewReportResponse struct {
 	Improvements  []string             `json:"improvements"`
 	NextSteps     []string             `json:"next_steps"`
 	QualityPassed bool                 `json:"quality_passed"`
+	Degraded      bool                 `json:"degraded"`
+	ErrorCode     string               `json:"error_code,optional"`
+	ErrorSummary  string               `json:"error_summary,optional"`
+	TaskId        string               `json:"task_id,optional"`
 	Turns         []TurnReportResponse `json:"turns"`
 	CreatedAt     string               `json:"created_at"`
 	UpdatedAt     string               `json:"updated_at"`
@@ -210,6 +214,9 @@ type InterviewTurnResponse struct {
 	AnsweredAt       string `json:"answered_at,optional"`
 	SkippedAt        string `json:"skipped_at,optional"`
 	TimeSpentSeconds int    `json:"time_spent_seconds"`
+	TurnKind         string `json:"turn_kind,optional"`
+	CapabilityKey    string `json:"capability_key,optional"`
+	ParentTurnId     string `json:"parent_turn_id,optional"`
 }
 
 type JobDescriptionPageResponse struct {
@@ -251,20 +258,26 @@ type PageRequest struct {
 }
 
 type QuestionInput struct {
-	Ordinal        int      `json:"ordinal"`
-	Question       string   `json:"question"`
-	Intent         string   `json:"intent"`
-	ExpectedPoints []string `json:"expected_points"`
-	FollowUpHint   string   `json:"follow_up_hint,optional"`
+	Ordinal         int      `json:"ordinal"`
+	Question        string   `json:"question"`
+	Intent          string   `json:"intent"`
+	ExpectedPoints  []string `json:"expected_points"`
+	FollowUpHint    string   `json:"follow_up_hint,optional"`
+	CapabilityKey   string   `json:"capability_key,optional"`
+	Difficulty      string   `json:"difficulty,optional"`
+	EvidenceFactIds []string `json:"evidence_fact_ids,optional"`
 }
 
 type QuestionResponse struct {
-	Id             string   `json:"id"`
-	Ordinal        int      `json:"ordinal"`
-	Question       string   `json:"question"`
-	Intent         string   `json:"intent"`
-	ExpectedPoints []string `json:"expected_points"`
-	FollowUpHint   string   `json:"follow_up_hint,optional"`
+	Id              string   `json:"id"`
+	Ordinal         int      `json:"ordinal"`
+	Question        string   `json:"question"`
+	Intent          string   `json:"intent"`
+	ExpectedPoints  []string `json:"expected_points"`
+	FollowUpHint    string   `json:"follow_up_hint,optional"`
+	CapabilityKey   string   `json:"capability_key,optional"`
+	Difficulty      string   `json:"difficulty,optional"`
+	EvidenceFactIds []string `json:"evidence_fact_ids,optional"`
 }
 
 type QuestionSetDetailResponse struct {
@@ -306,6 +319,8 @@ type QuestionSetSummaryResponse struct {
 	Status              string                           `json:"status"`
 	QuestionCount       int                              `json:"question_count"`
 	SourceQuestionSetId string                           `json:"source_question_set_id,optional"`
+	Degraded            bool                             `json:"degraded"`
+	TaskId              string                           `json:"task_id,optional"`
 	CreatedAt           string                           `json:"created_at"`
 	UpdatedAt           string                           `json:"updated_at"`
 }
@@ -480,4 +495,52 @@ type UserResponse struct {
 	Id          string `json:"id"`
 	Email       string `json:"email"`
 	DisplayName string `json:"display_name"`
+}
+
+type DeleteAccountRequest struct {
+	Password string `json:"password"`
+}
+
+type AccountExportResponse struct {
+	ExportedAt       string       `json:"exported_at"`
+	User             UserResponse `json:"user"`
+	Resumes          interface{}  `json:"resumes"`
+	Jobs             interface{}  `json:"job_descriptions"`
+	QuestionSets     interface{}  `json:"question_sets"`
+	Interviews       interface{}  `json:"interviews"`
+	Reports          interface{}  `json:"reports"`
+	Tasks            interface{}  `json:"tasks"`
+	SkillProfile     interface{}  `json:"skill_profile"`
+	ModelInvocations interface{}  `json:"model_invocations"`
+}
+
+type SkillProfileResponse struct {
+	Strengths       []string `json:"strengths"`
+	Gaps            []string `json:"gaps"`
+	Notes           string   `json:"notes"`
+	SourceSessionId string   `json:"source_session_id,optional"`
+	UpdatedAt       string   `json:"updated_at,optional"`
+}
+
+type UpdateSkillProfileRequest struct {
+	Strengths []string `json:"strengths,optional"`
+	Gaps      []string `json:"gaps,optional"`
+	Notes     string   `json:"notes,optional"`
+}
+
+type MetricsResponse struct {
+	Requests                int64 `json:"requests"`
+	Successes               int64 `json:"successes"`
+	Failures                int64 `json:"failures"`
+	Retries                 int64 `json:"retries"`
+	Degraded                int64 `json:"degraded"`
+	BudgetRejected          int64 `json:"budget_rejected"`
+	PromptTokens            int64 `json:"prompt_tokens"`
+	CompletionTokens        int64 `json:"completion_tokens"`
+	TotalTokens             int64 `json:"total_tokens"`
+	EstimatedCostMicros     int64 `json:"estimated_cost_micros"`
+	LatencyMsSum            int64 `json:"latency_ms_sum"`
+	StructuredFirstFail     int64 `json:"structured_first_fail"`
+	StructuredRepairSuccess int64 `json:"structured_repair_success"`
+	StructuredFinalFail     int64 `json:"structured_final_fail"`
 }

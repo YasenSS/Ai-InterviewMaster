@@ -17,6 +17,8 @@ const (
 	ErrorProviderUnavailable ErrorCode = "AI_PROVIDER_UNAVAILABLE"
 	ErrorTimeout             ErrorCode = "AI_TIMEOUT"
 	ErrorOutputInvalid       ErrorCode = "AI_OUTPUT_INVALID"
+	ErrorContextOverflow     ErrorCode = "AI_CONTEXT_OVERFLOW"
+	ErrorBudgetExhausted     ErrorCode = "AI_BUDGET_EXHAUSTED"
 )
 
 // Error is the provider-neutral error returned by the AI infrastructure.

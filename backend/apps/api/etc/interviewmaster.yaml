@@ -1,9 +1,9 @@
 Name: interviewmaster-api
 Host: 0.0.0.0
 Port: 8080
-# The first Eino-backed question generation path is synchronous for now. Keep the
-# HTTP deadline above Runtime.AI.RequestTimeout until it moves to the worker.
-Timeout: 45000
+# Question and report generation run in the worker. Keep the HTTP deadline for
+# ordinary CRUD and auth, not model calls.
+Timeout: 15000
 Mode: dev
 Log:
   ServiceName: interviewmaster-api
@@ -39,9 +39,15 @@ Runtime:
     BaseURL: https://api.openai.com/v1
     APIKey: ""
     ChatModel: gpt-4.1-mini
+    SmallModel: ""
+    EmbeddingModel: ""
     RequestTimeout: 30s
     MaxOutputTokens: 4096
     StructuredOutputs: true
+    MaxInputRunes: 50000
+    MaxInflight: 2
+    DailyCallsSoft: 30
+    DailyCallsHard: 50
   Security:
     JWTSigningKey: development-only-replace-before-production-32chars
   Telemetry:

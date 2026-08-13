@@ -18,13 +18,15 @@ export function DashboardPage() {
   const { user } = useAuth();
   const resumes = useQuery({ queryKey: queryKeys.resumes(), queryFn: api.resumes });
   const jobs = useQuery({ queryKey: queryKeys.jobs(), queryFn: api.jobs });
+  const questionSets = useQuery({ queryKey: queryKeys.questionSets(), queryFn: api.questionSets });
+  const interviews = useQuery({ queryKey: queryKeys.interviews(), queryFn: api.interviews });
   const recent = getRecent();
 
   if (resumes.isPending || jobs.isPending) return <DashboardSkeleton />;
   if (resumes.error) return <ErrorState error={normalizeError(resumes.error)} retry={() => resumes.refetch()} />;
 
   const hasMaterials = Boolean(resumes.data?.length || jobs.data?.length);
-  const interviews = recent.interviews;
+  const interviewItems = interviews.data ?? recent.interviews;
   return (
     <div className="page">
       <PageHeader
@@ -43,8 +45,8 @@ export function DashboardPage() {
       <section className="metric-grid" aria-label="真实资源统计">
         <Card><span className="metric-icon"><FileText /></span><p>简历</p><strong>{resumes.data?.length ?? 0}</strong><small>已保存材料</small></Card>
         <Card><span className="metric-icon"><BriefcaseBusiness /></span><p>职位描述</p><strong>{jobs.data?.length ?? 0}</strong><small>可选训练材料</small></Card>
-        <Card><span className="metric-icon"><GraduationCap /></span><p>本设备最近面试</p><strong>{interviews.length}</strong><small>正式列表接口待开放</small></Card>
-        <Card><span className="metric-icon"><ClipboardList /></span><p>本设备最近题集</p><strong>{recent.questionSets.length}</strong><small>正式列表接口待开放</small></Card>
+        <Card><span className="metric-icon"><GraduationCap /></span><p>模拟面试</p><strong>{interviewItems.length}</strong><small>已创建场次</small></Card>
+        <Card><span className="metric-icon"><ClipboardList /></span><p>题集</p><strong>{questionSets.data?.length ?? recent.questionSets.length}</strong><small>已生成题集</small></Card>
       </section>
       <div className="dashboard-grid">
         <section className="section-card">

@@ -62,7 +62,7 @@ export function MarketingPage() {
         </section>
         <section className="final-cta"><h2>让下一次面试，从一次认真练习开始。</h2><p>上传你的简历，开始第一轮 AI 模拟面试。</p><Link className="button button-primary button-lg" href="/register">免费开始 <ArrowRight size={18} /></Link></section>
       </main>
-      <footer className="marketing-footer"><Link className="product-brand" href="/"><span className="logo-mark">IM</span>InterviewMaster</Link><p>© 2026 InterviewMaster · AI 面试训练助手</p><div><Link href="/login">登录</Link><Link href="/register">注册</Link></div></footer>
+      <footer className="marketing-footer"><Link className="product-brand" href="/"><span className="logo-mark">IM</span>InterviewMaster</Link><p>© 2026 InterviewMaster · AI 面试训练助手</p><div><Link href="/privacy">隐私说明</Link><Link href="/login">登录</Link><Link href="/register">注册</Link></div></footer>
     </div>
   );
 }

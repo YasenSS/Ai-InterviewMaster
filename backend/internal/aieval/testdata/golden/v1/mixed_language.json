@@ -1,0 +1,7 @@
+{
+  "name": "mixed_language",
+  "kind": "evaluation",
+  "question": "Describe a production incident you owned.",
+  "answer": "那次是 Redis 热点。I added local cache and the p99 dropped from 800ms to 90ms.",
+  "expect_zero": false
+}

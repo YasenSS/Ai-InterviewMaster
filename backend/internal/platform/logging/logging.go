@@ -27,7 +27,10 @@ func Setup(level string) *slog.Logger {
 	default:
 		slogLevel = slog.LevelInfo
 	}
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slogLevel}))
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level:       slogLevel,
+		ReplaceAttr: RedactAttr,
+	}))
 	slog.SetDefault(logger)
 	return logger
 }
@@ -141,4 +144,29 @@ func pathResourceIDs(path string) []string {
 		}
 	}
 	return result
+}
+
+var sensitiveLogKeys = map[string]struct{}{
+	"password": {}, "current_password": {}, "new_password": {}, "api_key": {},
+	"authorization": {}, "token": {}, "access_token": {}, "refresh_token": {},
+	"answer": {}, "resume": {}, "extracted_text": {}, "content": {}, "prompt": {},
+}
+
+func RedactAttr(_ []string, attr slog.Attr) slog.Attr {
+	key := strings.ToLower(attr.Key)
+	if _, ok := sensitiveLogKeys[key]; ok {
+		return slog.String(attr.Key, "[redacted]")
+	}
+	if strings.Contains(key, "email") && attr.Value.Kind() == slog.KindString {
+		return slog.String(attr.Key, redactEmail(attr.Value.String()))
+	}
+	return attr
+}
+
+func redactEmail(value string) string {
+	parts := strings.Split(value, "@")
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return "[redacted]"
+	}
+	return parts[0][:1] + "***@" + parts[1]
 }

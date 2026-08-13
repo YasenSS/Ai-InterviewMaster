@@ -1,0 +1,7 @@
+{
+  "name": "empty_answer",
+  "kind": "evaluation",
+  "question": "请介绍你最有挑战的项目。",
+  "answer": "   ",
+  "expect_zero": true
+}

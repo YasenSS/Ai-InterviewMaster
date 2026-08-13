@@ -3,6 +3,7 @@ package workspace
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/interviewmaster/interviewmaster/backend/internal/platform/apperror"
 	platformauth "github.com/interviewmaster/interviewmaster/backend/internal/platform/auth"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 const (
@@ -195,4 +197,9 @@ func unsupportedMedia(code, message string) error {
 
 func requestEntityTooLarge(code, message string) error {
 	return apperror.New(code, message, http.StatusRequestEntityTooLarge, nil, nil)
+}
+
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }

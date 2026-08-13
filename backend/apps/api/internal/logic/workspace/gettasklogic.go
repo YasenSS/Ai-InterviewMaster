@@ -40,6 +40,8 @@ const taskSelect = `
 	           WHEN task.task_type = 'resume.parse' THEN 'resume_version'
 	           WHEN task.task_type = 'object.cleanup' THEN 'resume_version'
 	           WHEN task.task_type = 'asr.transcribe' THEN 'other'
+	           WHEN task.task_type = 'question.generate' THEN 'question_set'
+	           WHEN task.task_type = 'report.generate' THEN 'interview_session'
 	           ELSE 'other'
 	       END,
 	       task.ref_id::text,
@@ -215,7 +217,7 @@ func retryTask(
 	if err != nil {
 		return nil, err
 	}
-	if status != "failed" || (taskType != "resume.parse" && taskType != "object.cleanup") {
+	if status != "failed" || (taskType != "resume.parse" && taskType != "object.cleanup" && taskType != "question.generate" && taskType != "report.generate") {
 		return nil, conflict("TASK_NOT_RETRYABLE", "该任务不支持重试", nil)
 	}
 	var existingID, existingStatus string
@@ -305,6 +307,42 @@ func retryTask(
 			ObjectKey: objectKey,
 		})
 		queue = "default"
+	case "question.generate":
+		var resumeID, jobID, targetRole string
+		err = tx.QueryRow(ctx, `
+			SELECT resume_id::text, COALESCE(job_description_id::text, ''), COALESCE(target_role, '')
+			FROM question_sets WHERE id=$1 AND user_id=$2`,
+			refID, userID,
+		).Scan(&resumeID, &jobID, &targetRole)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, conflict("TASK_NOT_RETRYABLE", "题集已不存在，无法重试", nil)
+		}
+		if err != nil {
+			return nil, err
+		}
+		if _, err = tx.Exec(ctx, `UPDATE question_sets SET status='generating'::question_set_status, updated_at=now() WHERE id=$1`, refID); err != nil {
+			return nil, err
+		}
+		queuedTask, err = sharedtasks.NewQuestionGenerateTask(sharedtasks.QuestionGeneratePayload{
+			TaskID: newTaskID, QuestionSetID: refID, UserID: userID, ResumeID: resumeID, JobDescriptionID: jobID, TargetRole: targetRole,
+		})
+		queue = "heavy"
+	case "report.generate":
+		var reportID string
+		err = tx.QueryRow(ctx, `SELECT id::text FROM interview_reports WHERE session_id=$1`, refID).Scan(&reportID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, conflict("TASK_NOT_RETRYABLE", "报告已不存在，无法重试", nil)
+		}
+		if err != nil {
+			return nil, err
+		}
+		if _, err = tx.Exec(ctx, `UPDATE interview_reports SET status='pending', error_code=NULL, error_summary=NULL, updated_at=now() WHERE id=$1`, reportID); err != nil {
+			return nil, err
+		}
+		queuedTask, err = sharedtasks.NewReportGenerateTask(sharedtasks.ReportGeneratePayload{
+			TaskID: newTaskID, SessionID: refID, UserID: userID, ReportID: reportID,
+		})
+		queue = "heavy"
 	}
 	if err != nil {
 		return nil, err

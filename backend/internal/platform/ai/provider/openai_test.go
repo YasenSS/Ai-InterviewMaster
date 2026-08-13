@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -104,12 +106,82 @@ func TestOpenAIGenerateMapsRateLimit(t *testing.T) {
 	}
 }
 
+func TestOpenAIGenerateUsesDeepSeek(t *testing.T) {
+	apiKey := os.Getenv("DEEPSEEK_API_KEY")
+	if apiKey == "" {
+		t.Skip("DEEPSEEK_API_KEY is not set")
+	}
+	chatModel, err := NewOpenAI(context.Background(), OpenAIConfig{
+		APIKey:            apiKey,
+		BaseURL:           "https://api.deepseek.com/v1",
+		Model:             "deepseek-v4-pro",
+		Timeout:           20 * time.Second,
+		MaxOutputTokens:   100,
+		StructuredOutputs: true,
+	})
+	if err != nil {
+		t.Fatalf("NewOpenAI() error = %v", err)
+	}
+	response, err := chatModel.Generate(context.Background(), platformai.GenerateRequest{
+		Messages: []platformai.Message{{Role: platformai.RoleUser, Content: "hello"}},
+	})
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	t.Logf("model=%s content=%s tokens=%d", response.Model, response.Message.Content, response.Usage.TotalTokens)
+	if strings.TrimSpace(response.Message.Content) == "" {
+		t.Fatal("empty model reply")
+	}
+}
+
+func TestOpenAIGenerateMapsServerError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = w.Write([]byte(`{"error":{"message":"upstream"}}`))
+	}))
+	defer server.Close()
+	chatModel, err := NewOpenAI(context.Background(), OpenAIConfig{
+		BaseURL: server.URL + "/v1", APIKey: "test-key", Model: "test-model", Timeout: 2 * time.Second, MaxOutputTokens: 100,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = chatModel.Generate(context.Background(), platformai.GenerateRequest{
+		Messages: []platformai.Message{{Role: platformai.RoleUser, Content: "hello"}},
+	})
+	if !platformai.IsErrorCode(err, platformai.ErrorProviderUnavailable) {
+		t.Fatalf("Generate() error = %v, want AI_PROVIDER_UNAVAILABLE", err)
+	}
+}
+
+func TestOpenAIGenerateMapsTimeout(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		time.Sleep(200 * time.Millisecond)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	chatModel, err := NewOpenAI(context.Background(), OpenAIConfig{
+		BaseURL: server.URL + "/v1", APIKey: "test-key", Model: "test-model", Timeout: 50 * time.Millisecond, MaxOutputTokens: 100,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = chatModel.Generate(context.Background(), platformai.GenerateRequest{
+		Messages: []platformai.Message{{Role: platformai.RoleUser, Content: "hello"}},
+	})
+	if !platformai.IsErrorCode(err, platformai.ErrorTimeout) && !platformai.IsErrorCode(err, platformai.ErrorProviderUnavailable) {
+		t.Fatalf("Generate() error = %v, want timeout or unavailable", err)
+	}
+}
+
 func TestOpenAIRejectsInvalidMessageBeforeNetwork(t *testing.T) {
 	chatModel, err := NewOpenAI(context.Background(), OpenAIConfig{
-		APIKey:          "test-key",
-		Model:           "test-model",
-		Timeout:         time.Second,
-		MaxOutputTokens: 100,
+		APIKey:            "test-key",
+		BaseURL:           "https://example.invalid/v1",
+		Model:             "test-model",
+		Timeout:           time.Second,
+		MaxOutputTokens:   100,
+		StructuredOutputs: true,
 	})
 	if err != nil {
 		t.Fatalf("NewOpenAI() error = %v", err)

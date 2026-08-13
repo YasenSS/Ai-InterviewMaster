@@ -1,0 +1,7 @@
+{
+  "name": "short_resume_new_grad",
+  "kind": "resume",
+  "untrusted": {
+    "resume": "张三，计算机本科应届。实习：某电商后端，参与订单查询接口。技能：Go、PostgreSQL。"
+  }
+}

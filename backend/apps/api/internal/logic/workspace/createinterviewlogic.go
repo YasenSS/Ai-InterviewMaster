@@ -168,7 +168,10 @@ func loadInterview(
 		               FLOOR(EXTRACT(EPOCH FROM (now() - started_at)))::integer
 		           )
 		           ELSE time_spent_seconds
-		       END
+		       END,
+		       COALESCE(turn_kind, 'main'),
+		       COALESCE(capability_key, ''),
+		       COALESCE(parent_turn_id::text, '')
 		FROM interview_turns
 		WHERE session_id = $1
 		ORDER BY ordinal ASC`,
@@ -191,6 +194,9 @@ func loadInterview(
 			&answeredAt,
 			&skippedAt,
 			&item.TimeSpentSeconds,
+			&item.TurnKind,
+			&item.CapabilityKey,
+			&item.ParentTurnId,
 		); err != nil {
 			return nil, err
 		}
@@ -238,8 +244,10 @@ func createInterview(
 	}
 	defer tx.Rollback(ctx)
 	var questionCount int
+	var qsetStatus string
+	var blueprint []byte
 	err = tx.QueryRow(ctx, `
-		SELECT count(question.id)::int
+		SELECT count(question.id)::int, qset.status::text, COALESCE(qset.blueprint, '{}'::jsonb)
 		FROM question_sets AS qset
 		LEFT JOIN questions AS question ON question.question_set_id = qset.id
 		WHERE qset.id = $1
@@ -249,12 +257,15 @@ func createInterview(
 		req.QuestionSetId,
 		userID,
 		req.ResumeId,
-	).Scan(&questionCount)
+	).Scan(&questionCount, &qsetStatus, &blueprint)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, resourceNotFound("QUESTION_SET_NOT_FOUND", "未找到与该简历关联的题集", err)
 	}
 	if err != nil {
 		return nil, err
+	}
+	if qsetStatus != "ready" && qsetStatus != "degraded" {
+		return nil, conflict("QUESTION_SET_NOT_READY", "题集生成完成后才能开始面试", map[string]any{"status": qsetStatus})
 	}
 	if questionCount == 0 {
 		return nil, conflict("QUESTION_SET_EMPTY", "题集没有可用于面试的题目", nil)
@@ -275,6 +286,14 @@ func createInterview(
 		}
 	}
 	sessionID := uuid.NewString()
+	followUpBudget := blueprintFollowUpBudget(blueprint)
+	var firstCapability string
+	_ = tx.QueryRow(ctx, `
+		SELECT COALESCE(capability_key, '')
+		FROM questions
+		WHERE question_set_id = $1
+		ORDER BY ordinal ASC
+		LIMIT 1`, req.QuestionSetId).Scan(&firstCapability)
 	_, err = tx.Exec(ctx, `
 		INSERT INTO interview_sessions (
 			id,
@@ -286,9 +305,13 @@ func createInterview(
 			status,
 			current_ordinal,
 			started_at,
-			question_duration_seconds
+			question_duration_seconds,
+			blueprint,
+			follow_up_budget,
+			current_capability_key,
+			interviewer_model
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, 'active', 1, now(), $7)`,
+		VALUES ($1, $2, $3, $4, $5, $6, 'active', 1, now(), $7, $8, $9, $10, $11)`,
 		sessionID,
 		userID,
 		req.ResumeId,
@@ -296,18 +319,24 @@ func createInterview(
 		nullUUID(req.JobDescriptionId),
 		title,
 		duration,
+		blueprint,
+		followUpBudget,
+		firstCapability,
+		svcCtx.Config.Runtime.AI.ChatModel,
 	)
 	if err != nil {
 		return nil, err
 	}
 	tag, err := tx.Exec(ctx, `
 		INSERT INTO interview_turns (
-			session_id, ordinal, question, started_at
+			session_id, ordinal, question, started_at, turn_kind, capability_key
 		)
 		SELECT $1,
 		       ordinal,
 		       question,
-		       CASE WHEN ordinal = 1 THEN now() ELSE NULL END
+		       CASE WHEN ordinal = 1 THEN now() ELSE NULL END,
+		       'main',
+		       COALESCE(capability_key, '')
 		FROM questions
 		WHERE question_set_id = $2
 		ORDER BY ordinal ASC`,
@@ -528,11 +557,33 @@ func saveInterviewAnswer(
 	if err != nil {
 		return nil, err
 	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	maybeInsertFollowUp(ctx, svcCtx, userID, sessionID, ordinal)
+	tx, err = svcCtx.Database.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+	if _, _, err := lockActiveInterview(ctx, tx, userID, sessionID); err != nil {
+		return nil, err
+	}
 	if err := advanceInterview(ctx, tx, sessionID); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
+	}
+	var remaining int
+	if err := svcCtx.Database.QueryRow(ctx, `
+		SELECT count(*) FROM interview_turns
+		WHERE session_id=$1 AND answer IS NULL`, sessionID,
+	).Scan(&remaining); err != nil {
+		return nil, err
+	}
+	if remaining == 0 {
+		return completeInterview(ctx, svcCtx, userID, sessionID, false)
 	}
 	return loadInterview(ctx, svcCtx, userID, sessionID)
 }
@@ -699,6 +750,7 @@ func completeInterview(
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
+	_, _, _ = ensureReportGeneration(ctx, svcCtx, userID, sessionID)
 	return loadInterview(ctx, svcCtx, userID, sessionID)
 }
 

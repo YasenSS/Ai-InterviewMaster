@@ -52,14 +52,22 @@ type Parser struct {
 // AI contains provider-neutral model settings. Provider-specific SDK types
 // deliberately stay in internal/platform/ai/provider.
 type AI struct {
-	Enabled           bool
-	Provider          string
-	BaseURL           string
-	APIKey            string
-	ChatModel         string
-	RequestTimeout    time.Duration
-	MaxOutputTokens   int
-	StructuredOutputs bool
+	Enabled               bool
+	Provider              string
+	BaseURL               string
+	APIKey                string
+	ChatModel             string
+	SmallModel            string
+	EmbeddingModel        string
+	RequestTimeout        time.Duration
+	MaxOutputTokens       int
+	StructuredOutputs     bool
+	MaxInputRunes         int
+	MaxInflight           int
+	DailyCallsSoft        int
+	DailyCallsHard        int
+	PromptMicrosPer1k     int64
+	CompletionMicrosPer1k int64
 }
 
 type Security struct {
@@ -94,6 +102,8 @@ func ApplyEnv(s *Settings) error {
 	overrideString("IM_AI_BASE_URL", &s.AI.BaseURL)
 	overrideString("IM_AI_API_KEY", &s.AI.APIKey)
 	overrideString("IM_AI_CHAT_MODEL", &s.AI.ChatModel)
+	overrideString("IM_AI_SMALL_MODEL", &s.AI.SmallModel)
+	overrideString("IM_AI_EMBEDDING_MODEL", &s.AI.EmbeddingModel)
 	overrideString("IM_JWT_SIGNING_KEY", &s.Security.JWTSigningKey)
 	overrideString("IM_OTEL_ENDPOINT", &s.Telemetry.Endpoint)
 
@@ -119,6 +129,18 @@ func ApplyEnv(s *Settings) error {
 		return err
 	}
 	if err := overrideDuration("IM_AI_REQUEST_TIMEOUT", &s.AI.RequestTimeout); err != nil {
+		return err
+	}
+	if err := overrideInt("IM_AI_MAX_INPUT_RUNES", &s.AI.MaxInputRunes); err != nil {
+		return err
+	}
+	if err := overrideInt("IM_AI_MAX_INFLIGHT", &s.AI.MaxInflight); err != nil {
+		return err
+	}
+	if err := overrideInt("IM_AI_DAILY_CALLS_SOFT", &s.AI.DailyCallsSoft); err != nil {
+		return err
+	}
+	if err := overrideInt("IM_AI_DAILY_CALLS_HARD", &s.AI.DailyCallsHard); err != nil {
 		return err
 	}
 

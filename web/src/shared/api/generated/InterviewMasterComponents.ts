@@ -169,6 +169,10 @@ export interface InterviewReportResponse {
 	improvements: Array<string>
 	next_steps: Array<string>
 	quality_passed: boolean
+	degraded: boolean
+	error_code?: string
+	error_summary?: string
+	task_id?: string
 	turns: Array<TurnReportResponse>
 	created_at: string
 	updated_at: string
@@ -227,6 +231,9 @@ export interface InterviewTurnResponse {
 	answered_at?: string
 	skipped_at?: string
 	time_spent_seconds: number
+	turn_kind?: string
+	capability_key?: string
+	parent_turn_id?: string
 }
 
 export interface JobDescriptionPageResponse {
@@ -285,6 +292,9 @@ export interface QuestionResponse {
 	intent: string
 	expected_points: Array<string>
 	follow_up_hint?: string
+	capability_key?: string
+	difficulty?: string
+	evidence_fact_ids?: Array<string>
 }
 
 export interface QuestionSetDetailResponse {
@@ -297,6 +307,8 @@ export interface QuestionSetDetailResponse {
 	status: string
 	question_count: number
 	source_question_set_id?: string
+	degraded: boolean
+	task_id?: string
 	created_at: string
 	updated_at: string
 	questions: Array<QuestionResponse>
@@ -339,6 +351,8 @@ export interface QuestionSetSummaryResponse {
 	status: string
 	question_count: number
 	source_question_set_id?: string
+	degraded: boolean
+	task_id?: string
 	created_at: string
 	updated_at: string
 }
@@ -529,5 +543,26 @@ export interface UserResponse {
 	id: string
 	email: string
 	display_name: string
+}
+
+export interface SkillProfileResponse {
+	strengths: Array<string>
+	gaps: Array<string>
+	notes: string
+	source_session_id?: string
+	updated_at?: string
+}
+
+export interface AccountExportResponse {
+	exported_at: string
+	user: UserResponse
+	resumes?: unknown
+	job_descriptions?: unknown
+	question_sets?: unknown
+	interviews?: unknown
+	reports?: unknown
+	tasks?: unknown
+	skill_profile?: unknown
+	model_invocations?: unknown
 }
 

@@ -10,11 +10,14 @@ import (
 
 	workerconfig "github.com/interviewmaster/interviewmaster/backend/apps/worker/internal/config"
 	"github.com/interviewmaster/interviewmaster/backend/apps/worker/internal/tasks"
+	"github.com/interviewmaster/interviewmaster/backend/internal/platform/airuntime"
 	"github.com/interviewmaster/interviewmaster/backend/internal/platform/appconfig"
+	"github.com/interviewmaster/interviewmaster/backend/internal/platform/cache"
 	"github.com/interviewmaster/interviewmaster/backend/internal/platform/database"
 	"github.com/interviewmaster/interviewmaster/backend/internal/platform/logging"
 	"github.com/interviewmaster/interviewmaster/backend/internal/platform/objectstore"
 	"github.com/interviewmaster/interviewmaster/backend/internal/platform/telemetry"
+	sharedtasks "github.com/interviewmaster/interviewmaster/backend/internal/tasks"
 
 	"github.com/hibiken/asynq"
 	"github.com/zeromicro/go-zero/core/conf"
@@ -68,13 +71,23 @@ func main() {
 		},
 	)
 
+	redisClient := cache.NewRedis(c.Runtime.Redis)
+	defer redisClient.Close()
+	chatModel, err := airuntime.NewChatModel(context.Background(), c.Runtime, db, redisClient)
+	if err != nil {
+		panic(err)
+	}
+
 	mux := asynq.NewServeMux()
 	mux.HandleFunc(tasks.TypeNoop, tasks.HandleNoop)
-	mux.Handle(tasks.TypeResumeParse, tasks.ResumeParseHandler(db, store, c.Runtime.ObjectStore.Bucket, c.Runtime.Parser.TikaURL))
+	mux.Handle(tasks.TypeResumeParse, tasks.ResumeParseHandler(db, store, c.Runtime.ObjectStore.Bucket, c.Runtime.Parser.TikaURL, chatModel))
+	mux.Handle(sharedtasks.TypeQuestionGenerate, tasks.QuestionGenerateHandler(db, chatModel))
+	mux.Handle(sharedtasks.TypeReportGenerate, tasks.ReportGenerateHandler(db, chatModel))
 	mux.Handle("object:cleanup", tasks.ObjectCleanupHandler(db, store, c.Runtime.ObjectStore.Bucket))
 	mux.Handle("asr:transcribe", tasks.ASRHandler(db, store, c.Runtime.ObjectStore.Bucket, c.Runtime.Parser.ASRURL))
 
 	slog.Info("starting worker", "environment", c.Runtime.Environment, "concurrency", c.Concurrency)
+	go runOpsLoop(ctx, db)
 	if err := server.Run(mux); err != nil {
 		panic(err)
 	}

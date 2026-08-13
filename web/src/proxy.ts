@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-const publicRoutes = new Set(["/", "/login", "/register"]);
+const publicRoutes = new Set(["/", "/privacy", "/login", "/register"]);
 
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
@@ -28,6 +28,7 @@ export const config = {
     "/interviews/:path*",
     "/tasks/:path*",
     "/settings/:path*",
+    "/privacy",
     "/login",
     "/register",
   ],

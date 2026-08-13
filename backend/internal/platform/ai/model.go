@@ -63,9 +63,17 @@ type GenerateRequest struct {
 	MaxTokens   int
 	Temperature *float64
 
+	// PreferSmall asks the instrumented wrapper to use the configured small
+	// model when a soft quota threshold has been crossed.
+	PreferSmall bool
+
 	// 审计关联
-	UserID string
-	TaskID string
+	UserID         string
+	TaskID         string
+	SessionID      string
+	ResourceType   string
+	ResourceID     string
+	IdempotencyKey string
 }
 
 // GenerateResponse 是一次模型调用的输出。

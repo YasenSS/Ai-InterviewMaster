@@ -18,7 +18,7 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
-var questionSetStatuses = map[string]struct{}{"ready": {}, "archived": {}}
+var questionSetStatuses = map[string]struct{}{"ready": {}, "archived": {}, "generating": {}, "failed": {}, "degraded": {}}
 
 var questionSetSorts = map[string]string{
 	"created_at_desc": "qs.created_at DESC, qs.id DESC",
@@ -210,7 +210,7 @@ func createQuestionSet(
 	svcCtx *svc.ServiceContext,
 	userID string,
 	req *types.CreateQuestionSetRequest,
-) (*types.QuestionSetDetailResponse, error) {
+) (*types.TaskAcceptedResponse, error) {
 	if err := validateID("resume_id", req.ResumeId); err != nil {
 		return nil, err
 	}
@@ -223,41 +223,7 @@ func createQuestionSet(
 	if err != nil {
 		return nil, err
 	}
-	questions, err := questionsForMaterials(ctx, svcCtx, userID, req.ResumeId, req.JobDescriptionId, targetRole)
-	if err != nil {
-		return nil, err
-	}
-	tx, err := svcCtx.Database.Begin(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback(ctx)
-	if err := validateQuestionSetReferences(
-		ctx,
-		tx,
-		userID,
-		req.ResumeId,
-		req.JobDescriptionId,
-	); err != nil {
-		return nil, err
-	}
-	setID, err := insertQuestionSet(
-		ctx,
-		tx,
-		userID,
-		req.ResumeId,
-		req.JobDescriptionId,
-		targetRole,
-		"",
-		questions,
-	)
-	if err != nil {
-		return nil, err
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return nil, err
-	}
-	return loadQuestionSet(ctx, svcCtx, userID, setID)
+	return enqueueQuestionSetGeneration(ctx, svcCtx, userID, req.ResumeId, req.JobDescriptionId, targetRole, "")
 }
 
 type questionSetSummaryScanner interface {
@@ -294,6 +260,7 @@ func scanQuestionSetSummary(row questionSetSummaryScanner) (types.QuestionSetSum
 	}
 	item.ResumeId = item.Resume.Id
 	item.JobDescriptionId = jobID
+	item.Degraded = item.Status == "degraded"
 	item.CreatedAt = formatTime(createdAt)
 	item.UpdatedAt = formatTime(updatedAt)
 	return item, nil
@@ -340,13 +307,21 @@ func loadQuestionSet(
 		QuestionSetSummaryResponse: summary,
 		Questions:                  []types.QuestionResponse{},
 	}
+	_ = svcCtx.Database.QueryRow(ctx, `
+		SELECT id::text FROM async_tasks
+		WHERE user_id=$1 AND ref_id=$2::uuid AND task_type='question.generate'
+		ORDER BY created_at DESC LIMIT 1`, userID, setID,
+	).Scan(&response.TaskId)
 	rows, err := svcCtx.Database.Query(ctx, `
 		SELECT id::text,
 		       ordinal,
 		       question,
 		       intent,
 		       expected_points,
-		       COALESCE(follow_up_hint, '')
+		       COALESCE(follow_up_hint, ''),
+		       COALESCE(capability_key, ''),
+		       COALESCE(difficulty, ''),
+		       COALESCE(evidence_fact_ids, '[]'::jsonb)
 		FROM questions
 		WHERE question_set_id = $1
 		ORDER BY ordinal ASC`,
@@ -358,7 +333,7 @@ func loadQuestionSet(
 	defer rows.Close()
 	for rows.Next() {
 		var item types.QuestionResponse
-		var raw []byte
+		var raw, evidenceRaw []byte
 		if err := rows.Scan(
 			&item.Id,
 			&item.Ordinal,
@@ -366,6 +341,9 @@ func loadQuestionSet(
 			&item.Intent,
 			&raw,
 			&item.FollowUpHint,
+			&item.CapabilityKey,
+			&item.Difficulty,
+			&evidenceRaw,
 		); err != nil {
 			return nil, err
 		}
@@ -373,6 +351,8 @@ func loadQuestionSet(
 		if err := json.Unmarshal(raw, &item.ExpectedPoints); err != nil {
 			return nil, err
 		}
+		item.EvidenceFactIds = []string{}
+		_ = json.Unmarshal(evidenceRaw, &item.EvidenceFactIds)
 		response.Questions = append(response.Questions, item)
 	}
 	return response, rows.Err()
@@ -604,7 +584,7 @@ func regenerateQuestionSet(
 	svcCtx *svc.ServiceContext,
 	userID string,
 	req *types.RegenerateQuestionSetRequest,
-) (*types.QuestionSetDetailResponse, error) {
+) (*types.TaskAcceptedResponse, error) {
 	var resumeID, jobID, targetRole string
 	err := svcCtx.Database.QueryRow(ctx, `
 		SELECT resume_id::text,
@@ -631,35 +611,7 @@ func regenerateQuestionSet(
 	if err != nil {
 		return nil, err
 	}
-	questions, err := questionsForMaterials(ctx, svcCtx, userID, resumeID, jobID, targetRole)
-	if err != nil {
-		return nil, err
-	}
-	tx, err := svcCtx.Database.Begin(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback(ctx)
-	if err := validateQuestionSetReferences(ctx, tx, userID, resumeID, jobID); err != nil {
-		return nil, err
-	}
-	newID, err := insertQuestionSet(
-		ctx,
-		tx,
-		userID,
-		resumeID,
-		jobID,
-		targetRole,
-		req.Id,
-		questions,
-	)
-	if err != nil {
-		return nil, err
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return nil, err
-	}
-	return loadQuestionSet(ctx, svcCtx, userID, newID)
+	return enqueueQuestionSetGeneration(ctx, svcCtx, userID, resumeID, jobID, targetRole, req.Id)
 }
 
 type CreateQuestionSetLogic struct {
@@ -672,7 +624,7 @@ func NewCreateQuestionSetLogic(ctx context.Context, svcCtx *svc.ServiceContext) 
 	return &CreateQuestionSetLogic{Logger: logx.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
 }
 
-func (l *CreateQuestionSetLogic) CreateQuestionSet(req *types.CreateQuestionSetRequest) (*types.QuestionSetDetailResponse, error) {
+func (l *CreateQuestionSetLogic) CreateQuestionSet(req *types.CreateQuestionSetRequest) (*types.TaskAcceptedResponse, error) {
 	userID, err := currentUserID(l.ctx)
 	if err != nil {
 		return nil, err
@@ -771,7 +723,7 @@ func NewRegenerateQuestionSetLogic(ctx context.Context, svcCtx *svc.ServiceConte
 	return &RegenerateQuestionSetLogic{Logger: logx.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
 }
 
-func (l *RegenerateQuestionSetLogic) RegenerateQuestionSet(req *types.RegenerateQuestionSetRequest) (*types.QuestionSetDetailResponse, error) {
+func (l *RegenerateQuestionSetLogic) RegenerateQuestionSet(req *types.RegenerateQuestionSetRequest) (*types.TaskAcceptedResponse, error) {
 	userID, err := currentUserID(l.ctx)
 	if err != nil {
 		return nil, err

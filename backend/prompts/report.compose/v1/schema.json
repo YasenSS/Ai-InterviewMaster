@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "strengths": { "type": "array", "maxItems": 8, "items": { "type": "string" } },
+    "improvements": { "type": "array", "maxItems": 8, "items": { "type": "string" } },
+    "next_steps": { "type": "array", "maxItems": 8, "items": { "type": "string" } }
+  },
+  "required": ["strengths", "improvements", "next_steps"]
+}

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "facts": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 40,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "fact_type": { "type": "string", "minLength": 1, "maxLength": 32 },
+          "fact_key": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "fact_value": { "type": "object" },
+          "source_excerpt": { "type": "string", "minLength": 2, "maxLength": 500 },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+        },
+        "required": ["fact_type", "fact_key", "fact_value", "source_excerpt", "confidence"]
+      }
+    }
+  },
+  "required": ["facts"]
+}

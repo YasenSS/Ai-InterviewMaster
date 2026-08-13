@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"io"
 	"strings"
-
-	"github.com/cloudwego/eino/compose"
 )
 
 // StructuredRequest is the input to a deterministic generate-and-decode graph.
@@ -18,7 +16,7 @@ type StructuredRequest struct {
 }
 
 // StructuredResult contains both the validated domain value and model metadata
-// needed by future audit and cost layers.
+// needed by audit and cost layers.
 type StructuredResult[T any] struct {
 	Value    T
 	Response GenerateResponse
@@ -28,58 +26,63 @@ type StructuredResult[T any] struct {
 // generation; this validator remains authoritative before business writes.
 type Validator[T any] func(T) error
 
-// StructuredRunner is a compiled Eino Graph with two deterministic nodes:
-// model generation followed by strict JSON decoding and domain validation.
+// StructuredRunner generates JSON, validates schema, decodes into T, then
+// applies domain rules. Invalid output is repaired at most once.
 type StructuredRunner[T any] struct {
-	runnable compose.Runnable[StructuredRequest, StructuredResult[T]]
+	chat     ChatModel
+	validate Validator[T]
 }
 
-// NewStructuredRunner compiles the reusable Eino graph once. The supplied
-// ChatModel can be a real Provider or a test fake.
-func NewStructuredRunner[T any](ctx context.Context, chatModel ChatModel, validate Validator[T]) (*StructuredRunner[T], error) {
+// NewStructuredRunner constructs the reusable generate/decode/repair executor.
+func NewStructuredRunner[T any](_ context.Context, chatModel ChatModel, validate Validator[T]) (*StructuredRunner[T], error) {
 	if chatModel == nil {
 		return nil, &Error{Code: ErrorNotConfigured, Cause: errors.New("chat model is nil")}
 	}
-
-	graph := compose.NewGraph[StructuredRequest, StructuredResult[T]]()
-	if err := graph.AddLambdaNode("generate", compose.InvokableLambda(func(ctx context.Context, input StructuredRequest) (GenerateResponse, error) {
-		return chatModel.Generate(ctx, input.Generate)
-	})); err != nil {
-		return nil, fmt.Errorf("add generate node: %w", err)
-	}
-	if err := graph.AddLambdaNode("decode", compose.InvokableLambda(func(_ context.Context, response GenerateResponse) (StructuredResult[T], error) {
-		value, err := decodeJSON[T](response.Message.Content)
-		if err != nil {
-			return StructuredResult[T]{}, &Error{Code: ErrorOutputInvalid, Cause: err}
-		}
-		if validate != nil {
-			if err := validate(value); err != nil {
-				return StructuredResult[T]{}, &Error{Code: ErrorOutputInvalid, Cause: err}
-			}
-		}
-		return StructuredResult[T]{Value: value, Response: response}, nil
-	})); err != nil {
-		return nil, fmt.Errorf("add decode node: %w", err)
-	}
-	if err := graph.AddEdge(compose.START, "generate"); err != nil {
-		return nil, fmt.Errorf("connect graph start: %w", err)
-	}
-	if err := graph.AddEdge("generate", "decode"); err != nil {
-		return nil, fmt.Errorf("connect graph decoder: %w", err)
-	}
-	if err := graph.AddEdge("decode", compose.END); err != nil {
-		return nil, fmt.Errorf("connect graph end: %w", err)
-	}
-	runnable, err := graph.Compile(ctx, compose.WithMaxRunSteps(4), compose.WithGraphName("structured_generation"))
-	if err != nil {
-		return nil, fmt.Errorf("compile structured generation graph: %w", err)
-	}
-	return &StructuredRunner[T]{runnable: runnable}, nil
+	return &StructuredRunner[T]{chat: chatModel, validate: validate}, nil
 }
 
 // Invoke generates, decodes and validates one typed result.
 func (r *StructuredRunner[T]) Invoke(ctx context.Context, request StructuredRequest) (StructuredResult[T], error) {
-	return r.runnable.Invoke(ctx, request)
+	result, err := r.attempt(ctx, request.Generate)
+	if err == nil {
+		return result, nil
+	}
+	if !IsErrorCode(err, ErrorOutputInvalid) {
+		return StructuredResult[T]{}, err
+	}
+	RecordStructuredFirstFail()
+	repair := request.Generate
+	repair.Messages = append(append([]Message{}, request.Generate.Messages...), Message{
+		Role:    RoleUser,
+		Content: "上次输出未通过校验：" + err.Error() + "\n请只输出修正后的完整 JSON，不要解释。",
+	})
+	repaired, repairErr := r.attempt(ctx, repair)
+	if repairErr != nil {
+		RecordStructuredFinalFail()
+		return StructuredResult[T]{}, repairErr
+	}
+	RecordStructuredRepairSuccess()
+	return repaired, nil
+}
+
+func (r *StructuredRunner[T]) attempt(ctx context.Context, request GenerateRequest) (StructuredResult[T], error) {
+	response, err := r.chat.Generate(ctx, request)
+	if err != nil {
+		return StructuredResult[T]{}, err
+	}
+	if err := ValidateJSON(request.JSONSchema, []byte(strings.TrimSpace(response.Message.Content))); err != nil {
+		return StructuredResult[T]{}, &Error{Code: ErrorOutputInvalid, Cause: err}
+	}
+	value, err := decodeJSON[T](response.Message.Content)
+	if err != nil {
+		return StructuredResult[T]{}, &Error{Code: ErrorOutputInvalid, Cause: err}
+	}
+	if r.validate != nil {
+		if err := r.validate(value); err != nil {
+			return StructuredResult[T]{}, &Error{Code: ErrorOutputInvalid, Cause: err}
+		}
+	}
+	return StructuredResult[T]{Value: value, Response: response}, nil
 }
 
 func decodeJSON[T any](content string) (T, error) {

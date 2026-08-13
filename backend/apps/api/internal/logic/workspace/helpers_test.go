@@ -42,12 +42,3 @@ func TestValidateQuestionInputsRequiresContinuousOrdinals(t *testing.T) {
 		t.Fatal("non-continuous ordinals were accepted")
 	}
 }
-
-func TestScoreAnswer(t *testing.T) {
-	if score := scoreAnswer("   "); score != 0 {
-		t.Fatalf("blank answer score = %d", score)
-	}
-	if score := scoreAnswer("useful answer"); score < 40 || score > 95 {
-		t.Fatalf("answer score = %d", score)
-	}
-}

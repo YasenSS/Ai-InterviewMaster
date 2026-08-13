@@ -1,0 +1,7 @@
+{
+  "name": "off_topic_answer",
+  "kind": "evaluation",
+  "question": "请设计一个可扩展的通知系统。",
+  "answer": "我喜欢旅游和做饭，周末一般去爬山。",
+  "expect_zero": false
+}

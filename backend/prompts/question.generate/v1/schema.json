@@ -20,9 +20,17 @@
             "maxItems": 5,
             "items": { "type": "string", "minLength": 1, "maxLength": 500 }
           },
-          "follow_up_hint": { "type": "string", "minLength": 1, "maxLength": 1000 }
+          "follow_up_hint": { "type": "string", "minLength": 1, "maxLength": 1000 },
+          "capability_key": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "difficulty": { "type": "string" },
+          "evidence_fact_ids": {
+            "type": "array",
+            "maxItems": 8,
+            "items": { "type": "string" }
+          },
+          "generic": { "type": "boolean" }
         },
-        "required": ["ordinal", "question", "intent", "expected_points", "follow_up_hint"]
+        "required": ["ordinal", "question", "intent", "expected_points", "follow_up_hint", "capability_key", "difficulty", "evidence_fact_ids", "generic"]
       }
     }
   },

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "action": { "type": "string", "enum": ["follow_up", "next_capability"] },
+    "question": { "type": "string" },
+    "capability_key": { "type": "string" },
+    "evidence_fact_ids": { "type": "array", "items": { "type": "string" } },
+    "reason": { "type": "string", "minLength": 1, "maxLength": 500 }
+  },
+  "required": ["action", "question", "capability_key", "evidence_fact_ids", "reason"]
+}

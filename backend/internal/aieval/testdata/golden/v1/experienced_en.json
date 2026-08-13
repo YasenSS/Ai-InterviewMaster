@@ -1,0 +1,7 @@
+{
+  "name": "experienced_en",
+  "kind": "resume",
+  "untrusted": {
+    "resume": "Jane Doe, senior backend engineer. Led a payments platform serving 20k QPS. Reduced p99 latency from 800ms to 120ms."
+  }
+}

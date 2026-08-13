@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "capability_keys": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 8,
+      "items": { "type": "string", "minLength": 1, "maxLength": 64 }
+    },
+    "weights": { "type": "object" },
+    "difficulty": { "type": "string" },
+    "question_count": { "type": "integer", "minimum": 3, "maximum": 8 },
+    "follow_up_budget": { "type": "integer", "minimum": 0, "maximum": 5 },
+    "time_budget_minutes": { "type": "integer", "minimum": 10, "maximum": 60 },
+    "evidence_scope": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "schema_version": { "type": "string" }
+  },
+  "required": ["capability_keys", "weights", "difficulty", "question_count", "follow_up_budget", "time_budget_minutes", "evidence_scope", "schema_version"]
+}

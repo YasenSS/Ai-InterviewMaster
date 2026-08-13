@@ -59,6 +59,12 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Path:    "/ready",
 				Handler: system.ReadyHandler(serverCtx),
 			},
+			{
+				// In-process AI metrics
+				Method:  http.MethodGet,
+				Path:    "/metrics",
+				Handler: system.MetricsHandler(serverCtx),
+			},
 		},
 		rest.WithPrefix("/api/v1"),
 	)
@@ -184,6 +190,36 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Method:  http.MethodPatch,
 				Path:    "/me",
 				Handler: workspace.UpdateMeHandler(serverCtx),
+			},
+			{
+				// Export the authenticated user's data
+				Method:  http.MethodGet,
+				Path:    "/me/export",
+				Handler: workspace.ExportMeHandler(serverCtx),
+			},
+			{
+				// Delete the authenticated account after password confirmation
+				Method:  http.MethodPost,
+				Path:    "/me/delete",
+				Handler: workspace.DeleteMeHandler(serverCtx),
+			},
+			{
+				// Return the user's skill profile
+				Method:  http.MethodGet,
+				Path:    "/me/skill-profile",
+				Handler: workspace.GetSkillProfileHandler(serverCtx),
+			},
+			{
+				// Create or replace the user's skill profile
+				Method:  http.MethodPatch,
+				Path:    "/me/skill-profile",
+				Handler: workspace.UpdateSkillProfileHandler(serverCtx),
+			},
+			{
+				// Delete the user's skill profile
+				Method:  http.MethodDelete,
+				Path:    "/me/skill-profile",
+				Handler: workspace.DeleteSkillProfileHandler(serverCtx),
 			},
 			{
 				// Generate a question set

@@ -17,3 +17,19 @@ func TestLoadRejectsUnsafePath(t *testing.T) {
 		t.Fatal("Load() accepted an unsafe key")
 	}
 }
+
+func TestLoadRejectsMissingVersion(t *testing.T) {
+	if _, err := Load("question.generate", "v999"); err == nil {
+		t.Fatal("Load() accepted a missing version")
+	}
+}
+
+func TestLoadFollowUpV1(t *testing.T) {
+	template, err := Load("interview.followup", "v1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if template.System == "" || template.Task == "" {
+		t.Fatal("follow-up template incomplete")
+	}
+}

@@ -15,10 +15,10 @@ import { useHydrated } from "@/shared/hooks/useRecent";
 
 type AuthContextValue = {
   user?: UserResponse;
-  logout: () => void;
+  logout: () => Promise<void>;
 };
 
-const AuthContext = createContext<AuthContextValue>({ logout: () => undefined });
+const AuthContext = createContext<AuthContextValue>({ logout: async () => undefined });
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -48,7 +48,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await api.logout();
+    } catch {
+      // Client cleanup still proceeds if the refresh cookie is already gone.
+    }
     authStorage.clear();
     clearInterviewDrafts();
     clearRecent();

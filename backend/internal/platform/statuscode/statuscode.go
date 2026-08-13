@@ -59,18 +59,20 @@ func successStatus(method, path string) int {
 	}
 
 	switch path {
-	case "/api/v1/auth/logout", "/api/v1/auth/change-password":
+	case "/api/v1/auth/logout", "/api/v1/auth/change-password", "/api/v1/me/delete":
 		return http.StatusNoContent
 	case "/api/v1/auth/register",
 		"/api/v1/resumes/uploads",
 		"/api/v1/job-descriptions",
-		"/api/v1/question-sets",
 		"/api/v1/interviews":
 		return http.StatusCreated
 	}
 
 	if strings.HasPrefix(path, "/api/v1/question-sets/") && strings.HasSuffix(path, "/regenerate") {
-		return http.StatusCreated
+		return http.StatusAccepted
+	}
+	if path == "/api/v1/question-sets" {
+		return http.StatusAccepted
 	}
 	if strings.HasPrefix(path, "/api/v1/resumes/") &&
 		(strings.HasSuffix(path, "/reparse") ||
