@@ -26,6 +26,17 @@ type ASRUploadResponse struct {
 	ExpiresAt string `json:"expires_at"`
 }
 
+type AccountExportResponse struct {
+	ExportedAt       string       `json:"exported_at"`
+	User             UserResponse `json:"user"`
+	Resumes          interface{}  `json:"resumes"`
+	Interviews       interface{}  `json:"interviews"`
+	Reports          interface{}  `json:"reports"`
+	Tasks            interface{}  `json:"tasks"`
+	SkillProfile     interface{}  `json:"skill_profile"`
+	ModelInvocations interface{}  `json:"model_invocations"`
+}
+
 type AnswerInterviewRequest struct {
 	Id     string `path:"id"`
 	Answer string `json:"answer"`
@@ -68,22 +79,9 @@ type CompleteResumeUploadRequest struct {
 
 type CreateInterviewRequest struct {
 	ResumeId                string `json:"resume_id"`
-	QuestionSetId           string `json:"question_set_id"`
-	JobDescriptionId        string `json:"job_description_id,optional"`
-	Title                   string `json:"title"`
+	PrimaryLanguage         string `json:"primary_language"`
+	TargetCompany           string `json:"target_company"`
 	QuestionDurationSeconds int    `json:"question_duration_seconds,optional"`
-}
-
-type CreateJobDescriptionRequest struct {
-	Company string `json:"company,optional"`
-	Title   string `json:"title"`
-	Content string `json:"content"`
-}
-
-type CreateQuestionSetRequest struct {
-	ResumeId         string `json:"resume_id"`
-	JobDescriptionId string `json:"job_description_id,optional"`
-	TargetRole       string `json:"target_role,optional"`
 }
 
 type CreateResumeUploadRequest struct {
@@ -103,21 +101,21 @@ type CreateResumeUploadResponse struct {
 
 type DashboardCountsResponse struct {
 	Resumes             int64 `json:"resumes"`
-	JobDescriptions     int64 `json:"job_descriptions"`
-	QuestionSets        int64 `json:"question_sets"`
 	Interviews          int64 `json:"interviews"`
 	CompletedInterviews int64 `json:"completed_interviews"`
 }
 
 type DashboardSummaryResponse struct {
-	Counts                DashboardCountsResponse    `json:"counts"`
-	AverageScore          *float64                   `json:"average_score,optional"`
-	ScoreTrend            []ScoreTrendResponse       `json:"score_trend"`
-	ImprovementTopics     []ImprovementTopicResponse `json:"improvement_topics"`
-	RecentResumes         []ResumeSummaryResponse    `json:"recent_resumes"`
-	RecentJobDescriptions []JobDescriptionResponse   `json:"recent_job_descriptions"`
-	RecentInterviews      []InterviewSummaryResponse `json:"recent_interviews"`
-	ActiveTasks           []TaskResponse             `json:"active_tasks"`
+	Counts            DashboardCountsResponse    `json:"counts"`
+	AverageScore      *float64                   `json:"average_score,optional"`
+	ScoreTrend        []ScoreTrendResponse       `json:"score_trend"`
+	ImprovementTopics []ImprovementTopicResponse `json:"improvement_topics"`
+	RecentResumes     []ResumeSummaryResponse    `json:"recent_resumes"`
+	RecentInterviews  []InterviewSummaryResponse `json:"recent_interviews"`
+}
+
+type DeleteAccountRequest struct {
+	Password string `json:"password"`
 }
 
 type ErrorResponse struct {
@@ -177,27 +175,29 @@ type InterviewReportResponse struct {
 
 type InterviewSessionResponse struct {
 	InterviewSummaryResponse
-	JobDescription          *JobDescriptionReferenceResponse `json:"job_description,optional"`
-	QuestionDurationSeconds int                              `json:"question_duration_seconds"`
-	Turns                   []InterviewTurnResponse          `json:"turns"`
+	TaskId                  string                  `json:"task_id,optional"`
+	QuestionDurationSeconds int                     `json:"question_duration_seconds"`
+	Turns                   []InterviewTurnResponse `json:"turns"`
 }
 
 type InterviewSummaryResponse struct {
-	Id              string                        `json:"id"`
-	Title           string                        `json:"title"`
-	Status          string                        `json:"status"`
-	QuestionSet     *QuestionSetReferenceResponse `json:"question_set,optional"`
-	Resume          ResumeReferenceResponse       `json:"resume"`
-	QuestionCount   int                           `json:"question_count"`
-	AnsweredCount   int                           `json:"answered_count"`
-	SkippedCount    int                           `json:"skipped_count"`
-	CurrentOrdinal  int                           `json:"current_ordinal"`
-	OverallScore    *int                          `json:"overall_score,optional"`
-	StartedAt       string                        `json:"started_at,optional"`
-	CompletedAt     string                        `json:"completed_at,optional"`
-	DurationSeconds int                           `json:"duration_seconds"`
-	CreatedAt       string                        `json:"created_at"`
-	UpdatedAt       string                        `json:"updated_at"`
+	Id              string                  `json:"id"`
+	Title           string                  `json:"title"`
+	Status          string                  `json:"status"`
+	PrimaryLanguage string                  `json:"primary_language"`
+	TargetCompany   string                  `json:"target_company"`
+	TargetRole      string                  `json:"target_role"`
+	Resume          ResumeReferenceResponse `json:"resume"`
+	QuestionCount   int                     `json:"question_count"`
+	AnsweredCount   int                     `json:"answered_count"`
+	SkippedCount    int                     `json:"skipped_count"`
+	CurrentOrdinal  int                     `json:"current_ordinal"`
+	OverallScore    *int                    `json:"overall_score,optional"`
+	StartedAt       string                  `json:"started_at,optional"`
+	CompletedAt     string                  `json:"completed_at,optional"`
+	DurationSeconds int                     `json:"duration_seconds"`
+	CreatedAt       string                  `json:"created_at"`
+	UpdatedAt       string                  `json:"updated_at"`
 }
 
 type InterviewTurnPath struct {
@@ -219,36 +219,26 @@ type InterviewTurnResponse struct {
 	ParentTurnId     string `json:"parent_turn_id,optional"`
 }
 
-type JobDescriptionPageResponse struct {
-	Items    []JobDescriptionResponse `json:"items"`
-	Page     int                      `json:"page"`
-	PageSize int                      `json:"page_size"`
-	Total    int64                    `json:"total"`
-}
-
-type JobDescriptionPath struct {
-	Id string `path:"id"`
-}
-
-type JobDescriptionReferenceResponse struct {
-	Id      string `json:"id"`
-	Company string `json:"company,optional"`
-	Title   string `json:"title"`
-}
-
-type JobDescriptionResponse struct {
-	Id           string   `json:"id"`
-	Company      string   `json:"company,optional"`
-	Title        string   `json:"title"`
-	Content      string   `json:"content"`
-	Capabilities []string `json:"capabilities"`
-	CreatedAt    string   `json:"created_at"`
-	UpdatedAt    string   `json:"updated_at"`
-}
-
 type LoginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+}
+
+type MetricsResponse struct {
+	Requests                int64 `json:"requests"`
+	Successes               int64 `json:"successes"`
+	Failures                int64 `json:"failures"`
+	Retries                 int64 `json:"retries"`
+	Degraded                int64 `json:"degraded"`
+	BudgetRejected          int64 `json:"budget_rejected"`
+	PromptTokens            int64 `json:"prompt_tokens"`
+	CompletionTokens        int64 `json:"completion_tokens"`
+	TotalTokens             int64 `json:"total_tokens"`
+	EstimatedCostMicros     int64 `json:"estimated_cost_micros"`
+	LatencyMsSum            int64 `json:"latency_ms_sum"`
+	StructuredFirstFail     int64 `json:"structured_first_fail"`
+	StructuredRepairSuccess int64 `json:"structured_repair_success"`
+	StructuredFinalFail     int64 `json:"structured_final_fail"`
 }
 
 type PageRequest struct {
@@ -257,85 +247,11 @@ type PageRequest struct {
 	Sort     string `form:"sort,optional"`
 }
 
-type QuestionInput struct {
-	Ordinal         int      `json:"ordinal"`
-	Question        string   `json:"question"`
-	Intent          string   `json:"intent"`
-	ExpectedPoints  []string `json:"expected_points"`
-	FollowUpHint    string   `json:"follow_up_hint,optional"`
-	CapabilityKey   string   `json:"capability_key,optional"`
-	Difficulty      string   `json:"difficulty,optional"`
-	EvidenceFactIds []string `json:"evidence_fact_ids,optional"`
-}
-
-type QuestionResponse struct {
-	Id              string   `json:"id"`
-	Ordinal         int      `json:"ordinal"`
-	Question        string   `json:"question"`
-	Intent          string   `json:"intent"`
-	ExpectedPoints  []string `json:"expected_points"`
-	FollowUpHint    string   `json:"follow_up_hint,optional"`
-	CapabilityKey   string   `json:"capability_key,optional"`
-	Difficulty      string   `json:"difficulty,optional"`
-	EvidenceFactIds []string `json:"evidence_fact_ids,optional"`
-}
-
-type QuestionSetDetailResponse struct {
-	QuestionSetSummaryResponse
-	Questions []QuestionResponse `json:"questions"`
-}
-
-type QuestionSetListRequest struct {
-	Status   []string `form:"status,optional"`
-	ResumeId string   `form:"resume_id,optional"`
-	Page     int      `form:"page,default=1"`
-	PageSize int      `form:"page_size,default=20"`
-	Sort     string   `form:"sort,optional"`
-}
-
-type QuestionSetPageResponse struct {
-	Items    []QuestionSetSummaryResponse `json:"items"`
-	Page     int                          `json:"page"`
-	PageSize int                          `json:"page_size"`
-	Total    int64                        `json:"total"`
-}
-
-type QuestionSetPath struct {
-	Id string `path:"id"`
-}
-
-type QuestionSetReferenceResponse struct {
-	Id         string `json:"id"`
-	TargetRole string `json:"target_role,optional"`
-}
-
-type QuestionSetSummaryResponse struct {
-	Id                  string                           `json:"id"`
-	ResumeId            string                           `json:"resume_id"`
-	JobDescriptionId    string                           `json:"job_description_id,optional"`
-	Resume              ResumeReferenceResponse          `json:"resume"`
-	JobDescription      *JobDescriptionReferenceResponse `json:"job_description,optional"`
-	TargetRole          string                           `json:"target_role,optional"`
-	Status              string                           `json:"status"`
-	QuestionCount       int                              `json:"question_count"`
-	SourceQuestionSetId string                           `json:"source_question_set_id,optional"`
-	Degraded            bool                             `json:"degraded"`
-	TaskId              string                           `json:"task_id,optional"`
-	CreatedAt           string                           `json:"created_at"`
-	UpdatedAt           string                           `json:"updated_at"`
-}
-
 type ReadinessResponse struct {
 	Status    string `json:"status"`
 	Database  string `json:"database"`
 	Redis     string `json:"redis"`
 	Timestamp string `json:"timestamp"`
-}
-
-type RegenerateQuestionSetRequest struct {
-	Id               string `path:"id"`
-	JobDescriptionId string `json:"job_description_id,optional"`
-	TargetRole       string `json:"target_role,optional"`
 }
 
 type RegisterRequest struct {
@@ -408,6 +324,14 @@ type ScoreTrendResponse struct {
 	InterviewCount int64   `json:"interview_count"`
 }
 
+type SkillProfileResponse struct {
+	Strengths       []string `json:"strengths"`
+	Gaps            []string `json:"gaps"`
+	Notes           string   `json:"notes"`
+	SourceSessionId string   `json:"source_session_id,optional"`
+	UpdatedAt       string   `json:"updated_at,optional"`
+}
+
 type TaskAcceptedResponse struct {
 	TaskId string `json:"task_id"`
 	Status string `json:"status"`
@@ -416,21 +340,6 @@ type TaskAcceptedResponse struct {
 type TaskErrorResponse struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
-}
-
-type TaskListRequest struct {
-	Status   []string `form:"status,optional"`
-	Type     string   `form:"type,optional"`
-	Page     int      `form:"page,default=1"`
-	PageSize int      `form:"page_size,default=20"`
-	Sort     string   `form:"sort,optional"`
-}
-
-type TaskPageResponse struct {
-	Items    []TaskResponse `json:"items"`
-	Page     int            `json:"page"`
-	PageSize int            `json:"page_size"`
-	Total    int64          `json:"total"`
 }
 
 type TaskPath struct {
@@ -468,58 +377,13 @@ type TurnReportResponse struct {
 	Evidence     []string `json:"evidence"`
 }
 
-type UpdateJobDescriptionRequest struct {
-	Id      string `path:"id"`
-	Company string `json:"company,optional"`
-	Title   string `json:"title,optional"`
-	Content string `json:"content,optional"`
-}
-
 type UpdateMeRequest struct {
 	DisplayName string `json:"display_name"`
-}
-
-type UpdateQuestionSetRequest struct {
-	Id         string          `path:"id"`
-	TargetRole string          `json:"target_role,optional"`
-	Status     string          `json:"status,optional"`
-	Questions  []QuestionInput `json:"questions,optional"`
 }
 
 type UpdateResumeRequest struct {
 	Id    string `path:"id"`
 	Title string `json:"title"`
-}
-
-type UserResponse struct {
-	Id          string `json:"id"`
-	Email       string `json:"email"`
-	DisplayName string `json:"display_name"`
-}
-
-type DeleteAccountRequest struct {
-	Password string `json:"password"`
-}
-
-type AccountExportResponse struct {
-	ExportedAt       string       `json:"exported_at"`
-	User             UserResponse `json:"user"`
-	Resumes          interface{}  `json:"resumes"`
-	Jobs             interface{}  `json:"job_descriptions"`
-	QuestionSets     interface{}  `json:"question_sets"`
-	Interviews       interface{}  `json:"interviews"`
-	Reports          interface{}  `json:"reports"`
-	Tasks            interface{}  `json:"tasks"`
-	SkillProfile     interface{}  `json:"skill_profile"`
-	ModelInvocations interface{}  `json:"model_invocations"`
-}
-
-type SkillProfileResponse struct {
-	Strengths       []string `json:"strengths"`
-	Gaps            []string `json:"gaps"`
-	Notes           string   `json:"notes"`
-	SourceSessionId string   `json:"source_session_id,optional"`
-	UpdatedAt       string   `json:"updated_at,optional"`
 }
 
 type UpdateSkillProfileRequest struct {
@@ -528,19 +392,8 @@ type UpdateSkillProfileRequest struct {
 	Notes     string   `json:"notes,optional"`
 }
 
-type MetricsResponse struct {
-	Requests                int64 `json:"requests"`
-	Successes               int64 `json:"successes"`
-	Failures                int64 `json:"failures"`
-	Retries                 int64 `json:"retries"`
-	Degraded                int64 `json:"degraded"`
-	BudgetRejected          int64 `json:"budget_rejected"`
-	PromptTokens            int64 `json:"prompt_tokens"`
-	CompletionTokens        int64 `json:"completion_tokens"`
-	TotalTokens             int64 `json:"total_tokens"`
-	EstimatedCostMicros     int64 `json:"estimated_cost_micros"`
-	LatencyMsSum            int64 `json:"latency_ms_sum"`
-	StructuredFirstFail     int64 `json:"structured_first_fail"`
-	StructuredRepairSuccess int64 `json:"structured_repair_success"`
-	StructuredFinalFail     int64 `json:"structured_final_fail"`
+type UserResponse struct {
+	Id          string `json:"id"`
+	Email       string `json:"email"`
+	DisplayName string `json:"display_name"`
 }

@@ -18,14 +18,14 @@ prompts/
 | prompt_key | 用途 | 调用节点 |
 | --- | --- | --- |
 | `resume.extract` | 简历全文 → 结构化事实 JSON（带 source_span） | Worker resumeparse |
-| `blueprint.generate` | 简历事实+JD → InterviewBlueprint | 创建面试前 |
-| `question.generate` | 蓝图+简历/JD → 题目/考察点/追问树 | 题集生成 logic |
-| `interview.followup` | 蓝图+近几轮 → 追问/下一题 | 面试官节点 |
+| `blueprint.generate` | 简历事实+语言+公司 → InterviewBlueprint | 面试后台准备 |
+| `question.generate` | 蓝图+简历+语言+公司 → 候选问题/考察点 | 面试后台准备 |
+| `interview.followup` | 蓝图+近几轮 → 追问/切换能力/结束 | 面试流程决策节点 |
 | `evaluation.critique` | 题目+回答+证据 → 五维评分+点评 | 评分 logic |
 
 ## 纪律
 
 - 每个版本一次冻结，升级 = 新增 version 目录，不改旧版本（可回溯）。
-- 用户提供的简历/JD/回答永远注入「数据区」，用明确分隔符与指令隔离，不混排。
+- 用户提供的简历、目标公司和回答永远注入「数据区」，用明确分隔符与指令隔离，不混排。
 - 输出必须配 JSON Schema，进入 Go struct 校验；失败只允许一次修复重试。
 - 每次调用记录 `prompt_key + prompt_version` 到 `model_invocations`。

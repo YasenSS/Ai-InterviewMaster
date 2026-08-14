@@ -577,24 +577,19 @@ func deleteResume(
 	if err != nil {
 		return err
 	}
-	var questionSetCount, interviewCount int
+	var interviewCount int
 	err = tx.QueryRow(ctx, `
-		SELECT
-			(SELECT count(*) FROM question_sets WHERE resume_id = $1),
-			(SELECT count(*) FROM interview_sessions WHERE resume_id = $1)`,
+		SELECT count(*) FROM interview_sessions WHERE resume_id = $1`,
 		resumeID,
-	).Scan(&questionSetCount, &interviewCount)
+	).Scan(&interviewCount)
 	if err != nil {
 		return err
 	}
-	if questionSetCount > 0 || interviewCount > 0 {
+	if interviewCount > 0 {
 		return conflict(
 			"RESUME_IN_USE",
-			"这份简历已用于题集或面试，暂时不能删除",
-			map[string]any{
-				"question_set_count": questionSetCount,
-				"interview_count":    interviewCount,
-			},
+			"这份简历已用于面试，暂时不能删除",
+			map[string]any{"interview_count": interviewCount},
 		)
 	}
 	rows, err := tx.Query(ctx, `

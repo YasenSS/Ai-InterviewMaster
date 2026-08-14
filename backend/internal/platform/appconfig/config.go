@@ -66,8 +66,8 @@ type AI struct {
 	MaxInflight           int
 	DailyCallsSoft        int
 	DailyCallsHard        int
-	PromptMicrosPer1k     int64
-	CompletionMicrosPer1k int64
+	PromptMicrosPer1k     int64 `json:",default=0"`
+	CompletionMicrosPer1k int64 `json:",default=0"`
 }
 
 type Security struct {

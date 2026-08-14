@@ -1,6 +1,10 @@
 package prompts
 
-import "testing"
+import (
+	"bytes"
+	"strings"
+	"testing"
+)
 
 func TestLoadQuestionGenerateV1(t *testing.T) {
 	template, err := Load("question.generate", "v1")
@@ -31,5 +35,14 @@ func TestLoadFollowUpV1(t *testing.T) {
 	}
 	if template.System == "" || template.Task == "" {
 		t.Fatal("follow-up template incomplete")
+	}
+	if !bytes.Contains(template.JSONSchema, []byte(`"finish"`)) ||
+		!bytes.Contains(template.JSONSchema, []byte(`"next_capability"`)) {
+		t.Fatal("next-turn actions missing from schema")
+	}
+	if !strings.Contains(template.System, "<untrusted_data_json>") ||
+		!strings.Contains(template.System, "primary_language") ||
+		!strings.Contains(template.System, "target_company") {
+		t.Fatal("profile context is not explicitly treated as untrusted data")
 	}
 }

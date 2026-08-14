@@ -1,0 +1,6 @@
+import { InterviewRecordPage } from "@/features/interviews/InterviewRecordPage";
+
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return <InterviewRecordPage id={id} />;
+}

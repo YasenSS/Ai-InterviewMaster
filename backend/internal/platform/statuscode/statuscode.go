@@ -63,17 +63,10 @@ func successStatus(method, path string) int {
 		return http.StatusNoContent
 	case "/api/v1/auth/register",
 		"/api/v1/resumes/uploads",
-		"/api/v1/job-descriptions",
 		"/api/v1/interviews":
 		return http.StatusCreated
 	}
 
-	if strings.HasPrefix(path, "/api/v1/question-sets/") && strings.HasSuffix(path, "/regenerate") {
-		return http.StatusAccepted
-	}
-	if path == "/api/v1/question-sets" {
-		return http.StatusAccepted
-	}
 	if strings.HasPrefix(path, "/api/v1/resumes/") &&
 		(strings.HasSuffix(path, "/reparse") ||
 			(strings.Contains(path, "/versions/") && strings.HasSuffix(path, "/complete"))) {

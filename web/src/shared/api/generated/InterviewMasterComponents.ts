@@ -24,6 +24,17 @@ export interface ASRUploadResponse {
 	expires_at: string
 }
 
+export interface AccountExportResponse {
+	exported_at: string
+	user: UserResponse
+	resumes: any
+	interviews: any
+	reports: any
+	tasks: any
+	skill_profile: any
+	model_invocations: any
+}
+
 export interface AnswerInterviewRequest {
 	answer: string
 }
@@ -68,22 +79,9 @@ export interface CompleteResumeUploadRequestParams {
 
 export interface CreateInterviewRequest {
 	resume_id: string
-	question_set_id: string
-	job_description_id?: string
-	title: string
+	primary_language: string
+	target_company: string
 	question_duration_seconds?: number
-}
-
-export interface CreateJobDescriptionRequest {
-	company?: string
-	title: string
-	content: string
-}
-
-export interface CreateQuestionSetRequest {
-	resume_id: string
-	job_description_id?: string
-	target_role?: string
 }
 
 export interface CreateResumeUploadRequest {
@@ -103,8 +101,6 @@ export interface CreateResumeUploadResponse {
 
 export interface DashboardCountsResponse {
 	resumes: number
-	job_descriptions: number
-	question_sets: number
 	interviews: number
 	completed_interviews: number
 }
@@ -115,9 +111,11 @@ export interface DashboardSummaryResponse {
 	score_trend: Array<ScoreTrendResponse>
 	improvement_topics: Array<ImprovementTopicResponse>
 	recent_resumes: Array<ResumeSummaryResponse>
-	recent_job_descriptions: Array<JobDescriptionResponse>
 	recent_interviews: Array<InterviewSummaryResponse>
-	active_tasks: Array<TaskResponse>
+}
+
+export interface DeleteAccountRequest {
+	password: string
 }
 
 export interface ErrorResponse {
@@ -182,7 +180,9 @@ export interface InterviewSessionResponse {
 	id: string
 	title: string
 	status: string
-	question_set?: QuestionSetReferenceResponse
+	primary_language: string
+	target_company: string
+	target_role: string
 	resume: ResumeReferenceResponse
 	question_count: number
 	answered_count: number
@@ -194,7 +194,7 @@ export interface InterviewSessionResponse {
 	duration_seconds: number
 	created_at: string
 	updated_at: string
-	job_description?: JobDescriptionReferenceResponse
+	task_id?: string
 	question_duration_seconds: number
 	turns: Array<InterviewTurnResponse>
 }
@@ -203,7 +203,9 @@ export interface InterviewSummaryResponse {
 	id: string
 	title: string
 	status: string
-	question_set?: QuestionSetReferenceResponse
+	primary_language: string
+	target_company: string
+	target_role: string
 	resume: ResumeReferenceResponse
 	question_count: number
 	answered_count: number
@@ -236,37 +238,26 @@ export interface InterviewTurnResponse {
 	parent_turn_id?: string
 }
 
-export interface JobDescriptionPageResponse {
-	items: Array<JobDescriptionResponse>
-	page: number
-	page_size: number
-	total: number
-}
-
-export interface JobDescriptionPath {
-}
-export interface JobDescriptionPathParams {
-}
-
-export interface JobDescriptionReferenceResponse {
-	id: string
-	company?: string
-	title: string
-}
-
-export interface JobDescriptionResponse {
-	id: string
-	company?: string
-	title: string
-	content: string
-	capabilities: Array<string>
-	created_at: string
-	updated_at: string
-}
-
 export interface LoginRequest {
 	email: string
 	password: string
+}
+
+export interface MetricsResponse {
+	requests: number
+	successes: number
+	failures: number
+	retries: number
+	degraded: number
+	budget_rejected: number
+	prompt_tokens: number
+	completion_tokens: number
+	total_tokens: number
+	estimated_cost_micros: number
+	latency_ms_sum: number
+	structured_first_fail: number
+	structured_repair_success: number
+	structured_final_fail: number
 }
 
 export interface PageRequest {
@@ -277,98 +268,11 @@ export interface PageRequestParams {
 	sort?: string
 }
 
-export interface QuestionInput {
-	ordinal: number
-	question: string
-	intent: string
-	expected_points: Array<string>
-	follow_up_hint?: string
-}
-
-export interface QuestionResponse {
-	id: string
-	ordinal: number
-	question: string
-	intent: string
-	expected_points: Array<string>
-	follow_up_hint?: string
-	capability_key?: string
-	difficulty?: string
-	evidence_fact_ids?: Array<string>
-}
-
-export interface QuestionSetDetailResponse {
-	id: string
-	resume_id: string
-	job_description_id?: string
-	resume: ResumeReferenceResponse
-	job_description?: JobDescriptionReferenceResponse
-	target_role?: string
-	status: string
-	question_count: number
-	source_question_set_id?: string
-	degraded: boolean
-	task_id?: string
-	created_at: string
-	updated_at: string
-	questions: Array<QuestionResponse>
-}
-
-export interface QuestionSetListRequest {
-}
-export interface QuestionSetListRequestParams {
-	status?: Array<string>
-	resume_id?: string
-	page: number
-	page_size: number
-	sort?: string
-}
-
-export interface QuestionSetPageResponse {
-	items: Array<QuestionSetSummaryResponse>
-	page: number
-	page_size: number
-	total: number
-}
-
-export interface QuestionSetPath {
-}
-export interface QuestionSetPathParams {
-}
-
-export interface QuestionSetReferenceResponse {
-	id: string
-	target_role?: string
-}
-
-export interface QuestionSetSummaryResponse {
-	id: string
-	resume_id: string
-	job_description_id?: string
-	resume: ResumeReferenceResponse
-	job_description?: JobDescriptionReferenceResponse
-	target_role?: string
-	status: string
-	question_count: number
-	source_question_set_id?: string
-	degraded: boolean
-	task_id?: string
-	created_at: string
-	updated_at: string
-}
-
 export interface ReadinessResponse {
 	status: string
 	database: string
 	redis: string
 	timestamp: string
-}
-
-export interface RegenerateQuestionSetRequest {
-	job_description_id?: string
-	target_role?: string
-}
-export interface RegenerateQuestionSetRequestParams {
 }
 
 export interface RegisterRequest {
@@ -450,6 +354,14 @@ export interface ScoreTrendResponse {
 	interview_count: number
 }
 
+export interface SkillProfileResponse {
+	strengths: Array<string>
+	gaps: Array<string>
+	notes: string
+	source_session_id?: string
+	updated_at?: string
+}
+
 export interface TaskAcceptedResponse {
 	task_id: string
 	status: string
@@ -458,23 +370,6 @@ export interface TaskAcceptedResponse {
 export interface TaskErrorResponse {
 	code: string
 	message: string
-}
-
-export interface TaskListRequest {
-}
-export interface TaskListRequestParams {
-	status?: Array<string>
-	type?: string
-	page: number
-	page_size: number
-	sort?: string
-}
-
-export interface TaskPageResponse {
-	items: Array<TaskResponse>
-	page: number
-	page_size: number
-	total: number
 }
 
 export interface TaskPath {
@@ -513,24 +408,8 @@ export interface TurnReportResponse {
 	evidence: Array<string>
 }
 
-export interface UpdateJobDescriptionRequest {
-	company?: string
-	title?: string
-	content?: string
-}
-export interface UpdateJobDescriptionRequestParams {
-}
-
 export interface UpdateMeRequest {
 	display_name: string
-}
-
-export interface UpdateQuestionSetRequest {
-	target_role?: string
-	status?: string
-	questions?: Array<QuestionInput>
-}
-export interface UpdateQuestionSetRequestParams {
 }
 
 export interface UpdateResumeRequest {
@@ -539,30 +418,15 @@ export interface UpdateResumeRequest {
 export interface UpdateResumeRequestParams {
 }
 
+export interface UpdateSkillProfileRequest {
+	strengths?: Array<string>
+	gaps?: Array<string>
+	notes?: string
+}
+
 export interface UserResponse {
 	id: string
 	email: string
 	display_name: string
-}
-
-export interface SkillProfileResponse {
-	strengths: Array<string>
-	gaps: Array<string>
-	notes: string
-	source_session_id?: string
-	updated_at?: string
-}
-
-export interface AccountExportResponse {
-	exported_at: string
-	user: UserResponse
-	resumes?: unknown
-	job_descriptions?: unknown
-	question_sets?: unknown
-	interviews?: unknown
-	reports?: unknown
-	tasks?: unknown
-	skill_profile?: unknown
-	model_invocations?: unknown
 }
 

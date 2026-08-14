@@ -1,31 +1,20 @@
-// Task loading, listing, and retry share the same reference and error mapping.
+// Task loading and retry share the same reference and error mapping.
 package workspace
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	"github.com/interviewmaster/interviewmaster/backend/apps/api/internal/svc"
 	"github.com/interviewmaster/interviewmaster/backend/apps/api/internal/types"
-	"github.com/interviewmaster/interviewmaster/backend/internal/platform/apperror"
 	sharedtasks "github.com/interviewmaster/interviewmaster/backend/internal/tasks"
 	"github.com/jackc/pgx/v5"
 	"github.com/zeromicro/go-zero/core/logx"
 )
-
-var taskStatuses = map[string]struct{}{
-	"pending": {}, "running": {}, "succeeded": {}, "failed": {},
-}
-
-var taskSorts = map[string]string{
-	"created_at_desc": "task.created_at DESC, task.id DESC",
-	"created_at_asc":  "task.created_at ASC, task.id ASC",
-}
 
 type taskScanner interface {
 	Scan(dest ...any) error
@@ -33,19 +22,22 @@ type taskScanner interface {
 
 const taskSelect = `
 	SELECT task.id::text,
-	       task.task_type,
+	       CASE
+	           WHEN task.task_type = 'question.generate' THEN 'interview.prepare'
+	           ELSE task.task_type
+	       END,
 	       task.status::text,
 	       task.progress::int,
 	       CASE
 	           WHEN task.task_type = 'resume.parse' THEN 'resume_version'
 	           WHEN task.task_type = 'object.cleanup' THEN 'resume_version'
 	           WHEN task.task_type = 'asr.transcribe' THEN 'other'
-	           WHEN task.task_type = 'question.generate' THEN 'question_set'
+	           WHEN task.task_type = 'question.generate' THEN 'interview_session'
 	           WHEN task.task_type = 'report.generate' THEN 'interview_session'
 	           ELSE 'other'
 	       END,
 	       task.ref_id::text,
-	       COALESCE(resume.title, ''),
+	       COALESCE(session.title, resume.title, ''),
 	       COALESCE(task.error_code, ''),
 	       COALESCE(task.error_summary, ''),
 	       COALESCE(task.result, 'null'::jsonb),
@@ -59,6 +51,9 @@ const taskSelect = `
 	  ON task.task_type = 'resume.parse'
 	 AND version.id = task.ref_id
 	LEFT JOIN resumes AS resume ON resume.id = version.resume_id
+	LEFT JOIN interview_sessions AS session
+	  ON task.task_type = 'question.generate'
+	 AND session.id = task.ref_id
 `
 
 func scanTask(row taskScanner) (types.TaskResponse, error) {
@@ -119,78 +114,6 @@ func loadTask(
 	return &item, nil
 }
 
-func listTasks(
-	ctx context.Context,
-	svcCtx *svc.ServiceContext,
-	userID string,
-	req *types.TaskListRequest,
-) (*types.TaskPageResponse, error) {
-	page, pageSize, offset, err := pageParams(req.Page, req.PageSize)
-	if err != nil {
-		return nil, err
-	}
-	statuses, err := parseEnumFilter("status", req.Status, taskStatuses)
-	if err != nil {
-		return nil, err
-	}
-	if statuses == nil {
-		statuses = []string{}
-	}
-	taskType := strings.TrimSpace(req.Type)
-	if len(taskType) > 120 {
-		return nil, apperror.Validation(map[string][]string{
-			"type": {"长度不能超过 120 个字符"},
-		})
-	}
-	orderBy, err := sortClause(req.Sort, "created_at_desc", taskSorts)
-	if err != nil {
-		return nil, err
-	}
-	response := &types.TaskPageResponse{
-		Items:    []types.TaskResponse{},
-		Page:     page,
-		PageSize: pageSize,
-	}
-	err = svcCtx.Database.QueryRow(ctx, `
-		SELECT count(*)
-		FROM async_tasks
-		WHERE user_id = $1
-		  AND (cardinality($2::text[]) = 0 OR status::text = ANY($2::text[]))
-		  AND ($3 = '' OR task_type = $3)`,
-		userID,
-		statuses,
-		taskType,
-	).Scan(&response.Total)
-	if err != nil {
-		return nil, err
-	}
-	rows, err := svcCtx.Database.Query(ctx,
-		taskSelect+`
-		WHERE task.user_id = $1
-		  AND (cardinality($2::text[]) = 0 OR task.status::text = ANY($2::text[]))
-		  AND ($3 = '' OR task.task_type = $3)
-		ORDER BY `+orderBy+`
-		LIMIT $4 OFFSET $5`,
-		userID,
-		statuses,
-		taskType,
-		pageSize,
-		offset,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		item, err := scanTask(rows)
-		if err != nil {
-			return nil, err
-		}
-		response.Items = append(response.Items, item)
-	}
-	return response, rows.Err()
-}
-
 func retryTask(
 	ctx context.Context,
 	svcCtx *svc.ServiceContext,
@@ -205,8 +128,16 @@ func retryTask(
 	var resultRaw []byte
 	err = tx.QueryRow(ctx, `
 		SELECT task_type, status::text, ref_id::text, COALESCE(result, 'null'::jsonb)
-		FROM async_tasks
-		WHERE id = $1 AND user_id = $2
+		FROM async_tasks AS task
+		WHERE task.id = $1 AND task.user_id = $2
+		  AND NOT EXISTS (
+			SELECT 1
+			FROM async_tasks AS newer
+			WHERE newer.user_id = task.user_id
+			  AND newer.ref_id = task.ref_id
+			  AND newer.task_type = task.task_type
+			  AND (newer.created_at, newer.id) > (task.created_at, task.id)
+		  )
 		FOR UPDATE`,
 		originalTaskID,
 		userID,
@@ -271,7 +202,7 @@ func retryTask(
 			SELECT resume.id::text
 			FROM resume_versions AS version
 			JOIN resumes AS resume ON resume.id = version.resume_id
-			WHERE version.id = $1 AND resume.user_id = $2`,
+			WHERE version.id = $1 AND resume.user_id = $2 AND resume.status = 'failed'`,
 			refID,
 			userID,
 		).Scan(&resumeID)
@@ -308,28 +239,44 @@ func retryTask(
 		})
 		queue = "default"
 	case "question.generate":
-		var resumeID, jobID, targetRole string
+		var sessionID, questionSetID, resumeID, resumeVersionID, primaryLanguage, targetCompany, targetRole string
 		err = tx.QueryRow(ctx, `
-			SELECT resume_id::text, COALESCE(job_description_id::text, ''), COALESCE(target_role, '')
-			FROM question_sets WHERE id=$1 AND user_id=$2`,
+			SELECT session.id::text, qset.id::text, session.resume_id::text, session.resume_version_id::text,
+			       session.primary_language, session.target_company,
+			       COALESCE(qset.target_role, 'backend_development')
+			FROM interview_sessions AS session
+			JOIN question_sets AS qset ON qset.id=session.question_set_id
+			WHERE session.id=$1 AND session.user_id=$2
+			  AND session.status='failed' AND qset.status='failed'`,
 			refID, userID,
-		).Scan(&resumeID, &jobID, &targetRole)
+		).Scan(&sessionID, &questionSetID, &resumeID, &resumeVersionID, &primaryLanguage, &targetCompany, &targetRole)
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, conflict("TASK_NOT_RETRYABLE", "题集已不存在，无法重试", nil)
+			return nil, conflict("TASK_NOT_RETRYABLE", "面试当前状态不允许重试准备", nil)
 		}
 		if err != nil {
 			return nil, err
 		}
-		if _, err = tx.Exec(ctx, `UPDATE question_sets SET status='generating'::question_set_status, updated_at=now() WHERE id=$1`, refID); err != nil {
+		if _, err = tx.Exec(ctx, `UPDATE question_sets SET status='generating'::question_set_status, updated_at=now() WHERE id=$1`, questionSetID); err != nil {
+			return nil, err
+		}
+		if _, err = tx.Exec(ctx, `UPDATE interview_sessions SET status='preparing', updated_at=now() WHERE id=$1`, sessionID); err != nil {
 			return nil, err
 		}
 		queuedTask, err = sharedtasks.NewQuestionGenerateTask(sharedtasks.QuestionGeneratePayload{
-			TaskID: newTaskID, QuestionSetID: refID, UserID: userID, ResumeID: resumeID, JobDescriptionID: jobID, TargetRole: targetRole,
+			TaskID: newTaskID, QuestionSetID: questionSetID, SessionID: sessionID,
+			UserID: userID, ResumeID: resumeID, ResumeVersionID: resumeVersionID, PrimaryLanguage: primaryLanguage,
+			TargetCompany: targetCompany, TargetRole: targetRole,
 		})
 		queue = "heavy"
 	case "report.generate":
 		var reportID string
-		err = tx.QueryRow(ctx, `SELECT id::text FROM interview_reports WHERE session_id=$1`, refID).Scan(&reportID)
+		err = tx.QueryRow(ctx, `
+			SELECT report.id::text
+			FROM interview_reports AS report
+			JOIN interview_sessions AS session ON session.id = report.session_id
+			WHERE report.session_id=$1 AND report.status='failed' AND session.user_id=$2`,
+			refID, userID,
+		).Scan(&reportID)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, conflict("TASK_NOT_RETRYABLE", "报告已不存在，无法重试", nil)
 		}
@@ -364,6 +311,25 @@ func retryTask(
 			newTaskID,
 			err.Error(),
 		)
+		switch taskType {
+		case "question.generate":
+			_, _ = svcCtx.Database.Exec(ctx, `
+				UPDATE interview_sessions SET status='failed', updated_at=now()
+				WHERE id=$1 AND user_id=$2 AND status='preparing'`, refID, userID)
+			_, _ = svcCtx.Database.Exec(ctx, `
+				UPDATE question_sets AS qset SET status='failed', updated_at=now()
+				FROM interview_sessions AS session
+				WHERE session.id=$1 AND session.user_id=$2
+				  AND qset.id=session.question_set_id AND qset.status='generating'`, refID, userID)
+		case "report.generate":
+			_, _ = svcCtx.Database.Exec(ctx, `
+				UPDATE interview_reports AS report
+				SET status='failed', error_code='TASK_ENQUEUE_FAILED',
+				    error_summary='报告任务暂时无法启动', updated_at=now()
+				FROM interview_sessions AS session
+				WHERE report.session_id=$1 AND session.id=report.session_id
+				  AND session.user_id=$2 AND report.status='pending'`, refID, userID)
+		}
 		return nil, err
 	}
 	return &types.TaskAcceptedResponse{TaskId: newTaskID, Status: "pending"}, nil
@@ -388,24 +354,6 @@ func (l *GetTaskLogic) GetTask(req *types.TaskPath) (*types.TaskResponse, error)
 		return nil, err
 	}
 	return loadTask(l.ctx, l.svcCtx, userID, req.Id)
-}
-
-type ListTasksLogic struct {
-	logx.Logger
-	ctx    context.Context
-	svcCtx *svc.ServiceContext
-}
-
-func NewListTasksLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ListTasksLogic {
-	return &ListTasksLogic{Logger: logx.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
-}
-
-func (l *ListTasksLogic) ListTasks(req *types.TaskListRequest) (*types.TaskPageResponse, error) {
-	userID, err := currentUserID(l.ctx)
-	if err != nil {
-		return nil, err
-	}
-	return listTasks(l.ctx, l.svcCtx, userID, req)
 }
 
 type RetryTaskLogic struct {

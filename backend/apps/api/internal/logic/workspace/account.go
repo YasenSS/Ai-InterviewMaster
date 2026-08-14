@@ -46,21 +46,12 @@ func (l *ExportMeLogic) ExportMe() (*types.AccountExportResponse, error) {
 			LEFT JOIN resume_versions AS version ON version.id = resume.current_version_id
 			WHERE resume.user_id = $1
 		) AS item`, userID)
-	response.Jobs = queryJSONAgg(l.ctx, l.svcCtx, `
-		SELECT COALESCE(json_agg(row_to_json(item) ORDER BY item.updated_at DESC), '[]'::json)
-		FROM (
-			SELECT id, company, title, content, extracted_capabilities, created_at, updated_at
-			FROM job_descriptions WHERE user_id = $1
-		) AS item`, userID)
-	response.QuestionSets = queryJSONAgg(l.ctx, l.svcCtx, `
-		SELECT COALESCE(json_agg(row_to_json(item) ORDER BY item.created_at DESC), '[]'::json)
-		FROM (
-			SELECT id, resume_id, target_role, status::text, created_at FROM question_sets WHERE user_id = $1
-		) AS item`, userID)
 	response.Interviews = queryJSONAgg(l.ctx, l.svcCtx, `
 		SELECT COALESCE(json_agg(row_to_json(item) ORDER BY item.updated_at DESC), '[]'::json)
 		FROM (
-			SELECT session.id, session.title, session.status::text, session.created_at, session.updated_at,
+			SELECT session.id, session.title, session.status::text, session.primary_language,
+			       session.target_company, 'backend_development' AS target_role,
+			       session.created_at, session.updated_at,
 			       COALESCE((
 			           SELECT json_agg(json_build_object('ordinal', turn.ordinal, 'question', turn.question, 'answer', turn.answer, 'turn_kind', turn.turn_kind) ORDER BY turn.ordinal)
 			           FROM interview_turns AS turn WHERE turn.session_id = session.id

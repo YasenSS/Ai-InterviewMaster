@@ -18,7 +18,7 @@ func (m scripted) Generate(_ context.Context, _ platformai.GenerateRequest) (pla
 }
 
 func TestGatesAreDocumented(t *testing.T) {
-	if MaxFollowUpsPerMainQuestion != 1 || MaxFollowUpBudget != 5 || MaxToolCallsPerTurn != 2 {
+	if MaxFollowUpsPerMainQuestion != contract.DefaultMaxFollowUpDepth || MaxFollowUpBudget != 5 || MaxToolCallsPerTurn != 2 {
 		t.Fatal("follow-up gates drifted from product contract")
 	}
 	if MaxInvalidStructuredRate <= 0 || MaxModelErrorRate <= 0 {

@@ -3,6 +3,7 @@ package workspace
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
@@ -118,7 +119,7 @@ func enqueueReportTask(ctx context.Context, svcCtx *svc.ServiceContext, userID, 
 	if err != nil {
 		return err
 	}
-	if _, err := svcCtx.TaskClient.EnqueueContext(ctx, queued, asynq.Queue("heavy")); err != nil {
+	if _, err := svcCtx.TaskClient.EnqueueContext(ctx, queued, asynq.Queue("heavy"), asynq.Unique(10*time.Minute)); err != nil && !errors.Is(err, asynq.ErrDuplicateTask) {
 		_, _ = svcCtx.Database.Exec(ctx, `
 			UPDATE interview_reports
 			SET status='failed', error_code='TASK_ENQUEUE_FAILED', error_summary='报告任务暂时无法启动', updated_at=now()

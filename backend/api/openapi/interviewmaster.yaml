@@ -307,60 +307,6 @@ paths:
           description: ""
           schema:
             properties:
-              active_tasks:
-                items:
-                  properties:
-                    completed_at:
-                      type: string
-                    created_at:
-                      type: string
-                    error:
-                      properties:
-                        code:
-                          type: string
-                        message:
-                          type: string
-                      required:
-                      - code
-                      - message
-                      type: object
-                    id:
-                      type: string
-                    progress:
-                      type: integer
-                    reference:
-                      properties:
-                        id:
-                          type: string
-                        title:
-                          type: string
-                        type:
-                          type: string
-                      required:
-                      - type
-                      - id
-                      type: object
-                    result: {}
-                    retry_of_task_id:
-                      type: string
-                    started_at:
-                      type: string
-                    status:
-                      type: string
-                    type:
-                      type: string
-                    updated_at:
-                      type: string
-                  required:
-                  - id
-                  - type
-                  - status
-                  - progress
-                  - reference
-                  - created_at
-                  - updated_at
-                  type: object
-                type: array
               average_score:
                 type: number
               counts:
@@ -369,16 +315,10 @@ paths:
                     type: integer
                   interviews:
                     type: integer
-                  job_descriptions:
-                    type: integer
-                  question_sets:
-                    type: integer
                   resumes:
                     type: integer
                 required:
                 - resumes
-                - job_descriptions
-                - question_sets
                 - interviews
                 - completed_interviews
                 type: object
@@ -411,17 +351,10 @@ paths:
                       type: string
                     overall_score:
                       type: integer
+                    primary_language:
+                      type: string
                     question_count:
                       type: integer
-                    question_set:
-                      properties:
-                        id:
-                          type: string
-                        target_role:
-                          type: string
-                      required:
-                      - id
-                      type: object
                     resume:
                       properties:
                         id:
@@ -438,6 +371,10 @@ paths:
                       type: string
                     status:
                       type: string
+                    target_company:
+                      type: string
+                    target_role:
+                      type: string
                     title:
                       type: string
                     updated_at:
@@ -446,40 +383,15 @@ paths:
                   - id
                   - title
                   - status
+                  - primary_language
+                  - target_company
+                  - target_role
                   - resume
                   - question_count
                   - answered_count
                   - skipped_count
                   - current_ordinal
                   - duration_seconds
-                  - created_at
-                  - updated_at
-                  type: object
-                type: array
-              recent_job_descriptions:
-                items:
-                  properties:
-                    capabilities:
-                      items:
-                        type: string
-                      type: array
-                    company:
-                      type: string
-                    content:
-                      type: string
-                    created_at:
-                      type: string
-                    id:
-                      type: string
-                    title:
-                      type: string
-                    updated_at:
-                      type: string
-                  required:
-                  - id
-                  - title
-                  - content
-                  - capabilities
                   - created_at
                   - updated_at
                   type: object
@@ -600,17 +512,10 @@ paths:
                       type: string
                     overall_score:
                       type: integer
+                    primary_language:
+                      type: string
                     question_count:
                       type: integer
-                    question_set:
-                      properties:
-                        id:
-                          type: string
-                        target_role:
-                          type: string
-                      required:
-                      - id
-                      type: object
                     resume:
                       properties:
                         id:
@@ -627,6 +532,10 @@ paths:
                       type: string
                     status:
                       type: string
+                    target_company:
+                      type: string
+                    target_role:
+                      type: string
                     title:
                       type: string
                     updated_at:
@@ -635,6 +544,9 @@ paths:
                   - id
                   - title
                   - status
+                  - primary_language
+                  - target_company
+                  - target_role
                   - resume
                   - question_count
                   - answered_count
@@ -665,20 +577,18 @@ paths:
         required: true
         schema:
           properties:
-            job_description_id:
+            primary_language:
               type: string
             question_duration_seconds:
               type: integer
-            question_set_id:
-              type: string
             resume_id:
               type: string
-            title:
+            target_company:
               type: string
           required:
           - resume_id
-          - question_set_id
-          - title
+          - primary_language
+          - target_company
           type: object
       produces:
       - application/json
@@ -699,33 +609,14 @@ paths:
                 type: integer
               id:
                 type: string
-              job_description:
-                properties:
-                  company:
-                    type: string
-                  id:
-                    type: string
-                  title:
-                    type: string
-                required:
-                - id
-                - title
-                type: object
               overall_score:
                 type: integer
+              primary_language:
+                type: string
               question_count:
                 type: integer
               question_duration_seconds:
                 type: integer
-              question_set:
-                properties:
-                  id:
-                    type: string
-                  target_role:
-                    type: string
-                required:
-                - id
-                type: object
               resume:
                 properties:
                   id:
@@ -742,6 +633,12 @@ paths:
                 type: string
               status:
                 type: string
+              target_company:
+                type: string
+              target_role:
+                type: string
+              task_id:
+                type: string
               title:
                 type: string
               turns:
@@ -751,8 +648,12 @@ paths:
                       type: string
                     answered_at:
                       type: string
+                    capability_key:
+                      type: string
                     ordinal:
                       type: integer
+                    parent_turn_id:
+                      type: string
                     question:
                       type: string
                     skipped_at:
@@ -763,6 +664,8 @@ paths:
                       type: string
                     time_spent_seconds:
                       type: integer
+                    turn_kind:
+                      type: string
                   required:
                   - ordinal
                   - question
@@ -775,7 +678,7 @@ paths:
             type: object
       schemes:
       - https
-      summary: Create an interview from a question snapshot
+      summary: Prepare an interview from a resume, language and target company
   /api/v1/interviews/{id}:
     get:
       operationId: workspaceGetInterview
@@ -803,33 +706,14 @@ paths:
                 type: integer
               id:
                 type: string
-              job_description:
-                properties:
-                  company:
-                    type: string
-                  id:
-                    type: string
-                  title:
-                    type: string
-                required:
-                - id
-                - title
-                type: object
               overall_score:
                 type: integer
+              primary_language:
+                type: string
               question_count:
                 type: integer
               question_duration_seconds:
                 type: integer
-              question_set:
-                properties:
-                  id:
-                    type: string
-                  target_role:
-                    type: string
-                required:
-                - id
-                type: object
               resume:
                 properties:
                   id:
@@ -846,6 +730,12 @@ paths:
                 type: string
               status:
                 type: string
+              target_company:
+                type: string
+              target_role:
+                type: string
+              task_id:
+                type: string
               title:
                 type: string
               turns:
@@ -855,8 +745,12 @@ paths:
                       type: string
                     answered_at:
                       type: string
+                    capability_key:
+                      type: string
                     ordinal:
                       type: integer
+                    parent_turn_id:
+                      type: string
                     question:
                       type: string
                     skipped_at:
@@ -867,6 +761,8 @@ paths:
                       type: string
                     time_spent_seconds:
                       type: integer
+                    turn_kind:
+                      type: string
                   required:
                   - ordinal
                   - question
@@ -919,33 +815,14 @@ paths:
                 type: integer
               id:
                 type: string
-              job_description:
-                properties:
-                  company:
-                    type: string
-                  id:
-                    type: string
-                  title:
-                    type: string
-                required:
-                - id
-                - title
-                type: object
               overall_score:
                 type: integer
+              primary_language:
+                type: string
               question_count:
                 type: integer
               question_duration_seconds:
                 type: integer
-              question_set:
-                properties:
-                  id:
-                    type: string
-                  target_role:
-                    type: string
-                required:
-                - id
-                type: object
               resume:
                 properties:
                   id:
@@ -962,6 +839,12 @@ paths:
                 type: string
               status:
                 type: string
+              target_company:
+                type: string
+              target_role:
+                type: string
+              task_id:
+                type: string
               title:
                 type: string
               turns:
@@ -971,8 +854,12 @@ paths:
                       type: string
                     answered_at:
                       type: string
+                    capability_key:
+                      type: string
                     ordinal:
                       type: integer
+                    parent_turn_id:
+                      type: string
                     question:
                       type: string
                     skipped_at:
@@ -983,6 +870,8 @@ paths:
                       type: string
                     time_spent_seconds:
                       type: integer
+                    turn_kind:
+                      type: string
                   required:
                   - ordinal
                   - question
@@ -1035,33 +924,14 @@ paths:
                 type: integer
               id:
                 type: string
-              job_description:
-                properties:
-                  company:
-                    type: string
-                  id:
-                    type: string
-                  title:
-                    type: string
-                required:
-                - id
-                - title
-                type: object
               overall_score:
                 type: integer
+              primary_language:
+                type: string
               question_count:
                 type: integer
               question_duration_seconds:
                 type: integer
-              question_set:
-                properties:
-                  id:
-                    type: string
-                  target_role:
-                    type: string
-                required:
-                - id
-                type: object
               resume:
                 properties:
                   id:
@@ -1078,6 +948,12 @@ paths:
                 type: string
               status:
                 type: string
+              target_company:
+                type: string
+              target_role:
+                type: string
+              task_id:
+                type: string
               title:
                 type: string
               turns:
@@ -1087,8 +963,12 @@ paths:
                       type: string
                     answered_at:
                       type: string
+                    capability_key:
+                      type: string
                     ordinal:
                       type: integer
+                    parent_turn_id:
+                      type: string
                     question:
                       type: string
                     skipped_at:
@@ -1099,6 +979,8 @@ paths:
                       type: string
                     time_spent_seconds:
                       type: integer
+                    turn_kind:
+                      type: string
                   required:
                   - ordinal
                   - question
@@ -1129,6 +1011,12 @@ paths:
             properties:
               created_at:
                 type: string
+              degraded:
+                type: boolean
+              error_code:
+                type: string
+              error_summary:
+                type: string
               id:
                 type: string
               improvements:
@@ -1151,6 +1039,8 @@ paths:
                 items:
                   type: string
                 type: array
+              task_id:
+                type: string
               turns:
                 items:
                   properties:
@@ -1228,33 +1118,14 @@ paths:
                 type: integer
               id:
                 type: string
-              job_description:
-                properties:
-                  company:
-                    type: string
-                  id:
-                    type: string
-                  title:
-                    type: string
-                required:
-                - id
-                - title
-                type: object
               overall_score:
                 type: integer
+              primary_language:
+                type: string
               question_count:
                 type: integer
               question_duration_seconds:
                 type: integer
-              question_set:
-                properties:
-                  id:
-                    type: string
-                  target_role:
-                    type: string
-                required:
-                - id
-                type: object
               resume:
                 properties:
                   id:
@@ -1271,6 +1142,12 @@ paths:
                 type: string
               status:
                 type: string
+              target_company:
+                type: string
+              target_role:
+                type: string
+              task_id:
+                type: string
               title:
                 type: string
               turns:
@@ -1280,8 +1157,12 @@ paths:
                       type: string
                     answered_at:
                       type: string
+                    capability_key:
+                      type: string
                     ordinal:
                       type: integer
+                    parent_turn_id:
+                      type: string
                     question:
                       type: string
                     skipped_at:
@@ -1292,6 +1173,8 @@ paths:
                       type: string
                     time_spent_seconds:
                       type: integer
+                    turn_kind:
+                      type: string
                   required:
                   - ordinal
                   - question
@@ -1338,33 +1221,14 @@ paths:
                 type: integer
               id:
                 type: string
-              job_description:
-                properties:
-                  company:
-                    type: string
-                  id:
-                    type: string
-                  title:
-                    type: string
-                required:
-                - id
-                - title
-                type: object
               overall_score:
                 type: integer
+              primary_language:
+                type: string
               question_count:
                 type: integer
               question_duration_seconds:
                 type: integer
-              question_set:
-                properties:
-                  id:
-                    type: string
-                  target_role:
-                    type: string
-                required:
-                - id
-                type: object
               resume:
                 properties:
                   id:
@@ -1381,6 +1245,12 @@ paths:
                 type: string
               status:
                 type: string
+              target_company:
+                type: string
+              target_role:
+                type: string
+              task_id:
+                type: string
               title:
                 type: string
               turns:
@@ -1390,8 +1260,12 @@ paths:
                       type: string
                     answered_at:
                       type: string
+                    capability_key:
+                      type: string
                     ordinal:
                       type: integer
+                    parent_turn_id:
+                      type: string
                     question:
                       type: string
                     skipped_at:
@@ -1402,6 +1276,8 @@ paths:
                       type: string
                     time_spent_seconds:
                       type: integer
+                    turn_kind:
+                      type: string
                   required:
                   - ordinal
                   - question
@@ -1415,219 +1291,6 @@ paths:
       schemes:
       - https
       summary: Skip a specific interview turn
-  /api/v1/job-descriptions:
-    get:
-      operationId: workspaceListJobDescriptions
-      parameters:
-      - default: 1
-        example: 1
-        in: query
-        name: page
-        required: true
-        type: integer
-      - default: 20
-        example: 20
-        in: query
-        name: page_size
-        required: true
-        type: integer
-      - allowEmptyValue: true
-        in: query
-        name: sort
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: ""
-          schema:
-            properties:
-              items:
-                items:
-                  properties:
-                    capabilities:
-                      items:
-                        type: string
-                      type: array
-                    company:
-                      type: string
-                    content:
-                      type: string
-                    created_at:
-                      type: string
-                    id:
-                      type: string
-                    title:
-                      type: string
-                    updated_at:
-                      type: string
-                  required:
-                  - id
-                  - title
-                  - content
-                  - capabilities
-                  - created_at
-                  - updated_at
-                  type: object
-                type: array
-              page:
-                type: integer
-              page_size:
-                type: integer
-              total:
-                type: integer
-            type: object
-      schemes:
-      - https
-      summary: List job descriptions with pagination
-    post:
-      consumes:
-      - application/json
-      operationId: workspaceCreateJobDescription
-      parameters:
-      - in: body
-        name: body
-        required: true
-        schema:
-          properties:
-            company:
-              type: string
-            content:
-              type: string
-            title:
-              type: string
-          required:
-          - title
-          - content
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: ""
-          schema:
-            properties:
-              capabilities:
-                items:
-                  type: string
-                type: array
-              company:
-                type: string
-              content:
-                type: string
-              created_at:
-                type: string
-              id:
-                type: string
-              title:
-                type: string
-              updated_at:
-                type: string
-            type: object
-      schemes:
-      - https
-      summary: Create a job description
-  /api/v1/job-descriptions/{id}:
-    delete:
-      consumes:
-      - application/x-www-form-urlencoded
-      operationId: workspaceDeleteJobDescription
-      parameters:
-      - in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: ""
-          schema: {}
-      schemes:
-      - https
-      summary: Delete a job description while preserving history
-    get:
-      operationId: workspaceGetJobDescription
-      parameters:
-      - in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: ""
-          schema:
-            properties:
-              capabilities:
-                items:
-                  type: string
-                type: array
-              company:
-                type: string
-              content:
-                type: string
-              created_at:
-                type: string
-              id:
-                type: string
-              title:
-                type: string
-              updated_at:
-                type: string
-            type: object
-      schemes:
-      - https
-      summary: Return a job description
-    patch:
-      consumes:
-      - application/json
-      operationId: workspaceUpdateJobDescription
-      parameters:
-      - in: path
-        name: id
-        required: true
-        type: string
-      - in: body
-        name: body
-        required: true
-        schema:
-          properties:
-            company:
-              type: string
-            content:
-              type: string
-            title:
-              type: string
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: ""
-          schema:
-            properties:
-              capabilities:
-                items:
-                  type: string
-                type: array
-              company:
-                type: string
-              content:
-                type: string
-              created_at:
-                type: string
-              id:
-                type: string
-              title:
-                type: string
-              updated_at:
-                type: string
-            type: object
-      schemes:
-      - https
-      summary: Update a job description and re-extract capabilities
   /api/v1/me:
     get:
       operationId: workspaceMe
@@ -1680,211 +1343,22 @@ paths:
       schemes:
       - https
       summary: Update the authenticated user profile
-  /api/v1/question-sets:
-    get:
-      operationId: workspaceListQuestionSets
-      parameters:
-      - allowEmptyValue: true
-        in: query
-        items:
-          type: string
-        name: status
-        type: array
-      - allowEmptyValue: true
-        in: query
-        name: resume_id
-        type: string
-      - default: 1
-        example: 1
-        in: query
-        name: page
-        required: true
-        type: integer
-      - default: 20
-        example: 20
-        in: query
-        name: page_size
-        required: true
-        type: integer
-      - allowEmptyValue: true
-        in: query
-        name: sort
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: ""
-          schema:
-            properties:
-              items:
-                items:
-                  properties:
-                    created_at:
-                      type: string
-                    id:
-                      type: string
-                    job_description:
-                      properties:
-                        company:
-                          type: string
-                        id:
-                          type: string
-                        title:
-                          type: string
-                      required:
-                      - id
-                      - title
-                      type: object
-                    job_description_id:
-                      type: string
-                    question_count:
-                      type: integer
-                    resume:
-                      properties:
-                        id:
-                          type: string
-                        title:
-                          type: string
-                      required:
-                      - id
-                      - title
-                      type: object
-                    resume_id:
-                      type: string
-                    source_question_set_id:
-                      type: string
-                    status:
-                      type: string
-                    target_role:
-                      type: string
-                    updated_at:
-                      type: string
-                  required:
-                  - id
-                  - resume_id
-                  - resume
-                  - status
-                  - question_count
-                  - created_at
-                  - updated_at
-                  type: object
-                type: array
-              page:
-                type: integer
-              page_size:
-                type: integer
-              total:
-                type: integer
-            type: object
-      schemes:
-      - https
-      summary: List question sets with pagination and filtering
+  /api/v1/me/delete:
     post:
       consumes:
       - application/json
-      operationId: workspaceCreateQuestionSet
+      operationId: workspaceDeleteMe
       parameters:
       - in: body
         name: body
         required: true
         schema:
           properties:
-            job_description_id:
-              type: string
-            resume_id:
-              type: string
-            target_role:
+            password:
               type: string
           required:
-          - resume_id
+          - password
           type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: ""
-          schema:
-            properties:
-              created_at:
-                type: string
-              id:
-                type: string
-              job_description:
-                properties:
-                  company:
-                    type: string
-                  id:
-                    type: string
-                  title:
-                    type: string
-                required:
-                - id
-                - title
-                type: object
-              job_description_id:
-                type: string
-              question_count:
-                type: integer
-              questions:
-                items:
-                  properties:
-                    expected_points:
-                      items:
-                        type: string
-                      type: array
-                    follow_up_hint:
-                      type: string
-                    id:
-                      type: string
-                    intent:
-                      type: string
-                    ordinal:
-                      type: integer
-                    question:
-                      type: string
-                  required:
-                  - id
-                  - ordinal
-                  - question
-                  - intent
-                  - expected_points
-                  type: object
-                type: array
-              resume:
-                properties:
-                  id:
-                    type: string
-                  title:
-                    type: string
-                required:
-                - id
-                - title
-                type: object
-              resume_id:
-                type: string
-              source_question_set_id:
-                type: string
-              status:
-                type: string
-              target_role:
-                type: string
-              updated_at:
-                type: string
-            type: object
-      schemes:
-      - https
-      summary: Generate a question set
-  /api/v1/question-sets/{id}:
-    delete:
-      consumes:
-      - application/x-www-form-urlencoded
-      operationId: workspaceDeleteQuestionSet
-      parameters:
-      - in: path
-        name: id
-        required: true
-        type: string
       produces:
       - application/json
       responses:
@@ -1893,14 +1367,10 @@ paths:
           schema: {}
       schemes:
       - https
-      summary: Delete an unused question set
+      summary: DeleteMe
+  /api/v1/me/export:
     get:
-      operationId: workspaceGetQuestionSet
-      parameters:
-      - in: path
-        name: id
-        required: true
-        type: string
+      operationId: workspaceExportMe
       produces:
       - application/json
       responses:
@@ -1908,115 +1378,90 @@ paths:
           description: ""
           schema:
             properties:
-              created_at:
+              exported_at:
                 type: string
-              id:
-                type: string
-              job_description:
+              interviews: {}
+              model_invocations: {}
+              reports: {}
+              resumes: {}
+              skill_profile: {}
+              tasks: {}
+              user:
                 properties:
-                  company:
+                  display_name:
+                    type: string
+                  email:
                     type: string
                   id:
                     type: string
-                  title:
-                    type: string
                 required:
                 - id
-                - title
+                - email
+                - display_name
                 type: object
-              job_description_id:
-                type: string
-              question_count:
-                type: integer
-              questions:
+            type: object
+      schemes:
+      - https
+      summary: ExportMe
+  /api/v1/me/skill-profile:
+    delete:
+      operationId: workspaceDeleteSkillProfile
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema: {}
+      schemes:
+      - https
+      summary: DeleteSkillProfile
+    get:
+      operationId: workspaceGetSkillProfile
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+          schema:
+            properties:
+              gaps:
                 items:
-                  properties:
-                    expected_points:
-                      items:
-                        type: string
-                      type: array
-                    follow_up_hint:
-                      type: string
-                    id:
-                      type: string
-                    intent:
-                      type: string
-                    ordinal:
-                      type: integer
-                    question:
-                      type: string
-                  required:
-                  - id
-                  - ordinal
-                  - question
-                  - intent
-                  - expected_points
-                  type: object
+                  type: string
                 type: array
-              resume:
-                properties:
-                  id:
-                    type: string
-                  title:
-                    type: string
-                required:
-                - id
-                - title
-                type: object
-              resume_id:
+              notes:
                 type: string
-              source_question_set_id:
+              source_session_id:
                 type: string
-              status:
-                type: string
-              target_role:
-                type: string
+              strengths:
+                items:
+                  type: string
+                type: array
               updated_at:
                 type: string
             type: object
       schemes:
       - https
-      summary: Return a question set and its questions
+      summary: GetSkillProfile
     patch:
       consumes:
       - application/json
-      operationId: workspaceUpdateQuestionSet
+      operationId: workspaceUpdateSkillProfile
       parameters:
-      - in: path
-        name: id
-        required: true
-        type: string
       - in: body
         name: body
         required: true
         schema:
           properties:
-            questions:
+            gaps:
               items:
-                properties:
-                  expected_points:
-                    items:
-                      type: string
-                    type: array
-                  follow_up_hint:
-                    type: string
-                  intent:
-                    type: string
-                  ordinal:
-                    type: integer
-                  question:
-                    type: string
-                required:
-                - ordinal
-                - question
-                - intent
-                - expected_points
-                type: object
+                type: string
               type: array
-            status:
+            notes:
               type: string
-            target_role:
-              type: string
+            strengths:
+              items:
+                type: string
+              type: array
           type: object
       produces:
       - application/json
@@ -2025,95 +1470,27 @@ paths:
           description: ""
           schema:
             properties:
-              created_at:
-                type: string
-              id:
-                type: string
-              job_description:
-                properties:
-                  company:
-                    type: string
-                  id:
-                    type: string
-                  title:
-                    type: string
-                required:
-                - id
-                - title
-                type: object
-              job_description_id:
-                type: string
-              question_count:
-                type: integer
-              questions:
+              gaps:
                 items:
-                  properties:
-                    expected_points:
-                      items:
-                        type: string
-                      type: array
-                    follow_up_hint:
-                      type: string
-                    id:
-                      type: string
-                    intent:
-                      type: string
-                    ordinal:
-                      type: integer
-                    question:
-                      type: string
-                  required:
-                  - id
-                  - ordinal
-                  - question
-                  - intent
-                  - expected_points
-                  type: object
+                  type: string
                 type: array
-              resume:
-                properties:
-                  id:
-                    type: string
-                  title:
-                    type: string
-                required:
-                - id
-                - title
-                type: object
-              resume_id:
+              notes:
                 type: string
-              source_question_set_id:
+              source_session_id:
                 type: string
-              status:
-                type: string
-              target_role:
-                type: string
+              strengths:
+                items:
+                  type: string
+                type: array
               updated_at:
                 type: string
             type: object
       schemes:
       - https
-      summary: Replace question-set content transactionally
-  /api/v1/question-sets/{id}/regenerate:
-    post:
-      consumes:
-      - application/json
-      operationId: workspaceRegenerateQuestionSet
-      parameters:
-      - in: path
-        name: id
-        required: true
-        type: string
-      - in: body
-        name: body
-        required: true
-        schema:
-          properties:
-            job_description_id:
-              type: string
-            target_role:
-              type: string
-          type: object
+      summary: UpdateSkillProfile
+  /api/v1/metrics:
+    get:
+      operationId: systemMetrics
       produces:
       - application/json
       responses:
@@ -2121,75 +1498,38 @@ paths:
           description: ""
           schema:
             properties:
-              created_at:
-                type: string
-              id:
-                type: string
-              job_description:
-                properties:
-                  company:
-                    type: string
-                  id:
-                    type: string
-                  title:
-                    type: string
-                required:
-                - id
-                - title
-                type: object
-              job_description_id:
-                type: string
-              question_count:
+              budget_rejected:
                 type: integer
-              questions:
-                items:
-                  properties:
-                    expected_points:
-                      items:
-                        type: string
-                      type: array
-                    follow_up_hint:
-                      type: string
-                    id:
-                      type: string
-                    intent:
-                      type: string
-                    ordinal:
-                      type: integer
-                    question:
-                      type: string
-                  required:
-                  - id
-                  - ordinal
-                  - question
-                  - intent
-                  - expected_points
-                  type: object
-                type: array
-              resume:
-                properties:
-                  id:
-                    type: string
-                  title:
-                    type: string
-                required:
-                - id
-                - title
-                type: object
-              resume_id:
-                type: string
-              source_question_set_id:
-                type: string
-              status:
-                type: string
-              target_role:
-                type: string
-              updated_at:
-                type: string
+              completion_tokens:
+                type: integer
+              degraded:
+                type: integer
+              estimated_cost_micros:
+                type: integer
+              failures:
+                type: integer
+              latency_ms_sum:
+                type: integer
+              prompt_tokens:
+                type: integer
+              requests:
+                type: integer
+              retries:
+                type: integer
+              structured_final_fail:
+                type: integer
+              structured_first_fail:
+                type: integer
+              structured_repair_success:
+                type: integer
+              successes:
+                type: integer
+              total_tokens:
+                type: integer
             type: object
       schemes:
       - https
-      summary: Regenerate a question set with lineage
+      summary: In-process AI metrics
   /api/v1/ready:
     get:
       operationId: systemReady
@@ -2509,107 +1849,6 @@ paths:
       schemes:
       - https
       summary: Create a browser-direct resume upload
-  /api/v1/tasks:
-    get:
-      operationId: workspaceListTasks
-      parameters:
-      - allowEmptyValue: true
-        in: query
-        items:
-          type: string
-        name: status
-        type: array
-      - allowEmptyValue: true
-        in: query
-        name: type
-        type: string
-      - default: 1
-        example: 1
-        in: query
-        name: page
-        required: true
-        type: integer
-      - default: 20
-        example: 20
-        in: query
-        name: page_size
-        required: true
-        type: integer
-      - allowEmptyValue: true
-        in: query
-        name: sort
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: ""
-          schema:
-            properties:
-              items:
-                items:
-                  properties:
-                    completed_at:
-                      type: string
-                    created_at:
-                      type: string
-                    error:
-                      properties:
-                        code:
-                          type: string
-                        message:
-                          type: string
-                      required:
-                      - code
-                      - message
-                      type: object
-                    id:
-                      type: string
-                    progress:
-                      type: integer
-                    reference:
-                      properties:
-                        id:
-                          type: string
-                        title:
-                          type: string
-                        type:
-                          type: string
-                      required:
-                      - type
-                      - id
-                      type: object
-                    result: {}
-                    retry_of_task_id:
-                      type: string
-                    started_at:
-                      type: string
-                    status:
-                      type: string
-                    type:
-                      type: string
-                    updated_at:
-                      type: string
-                  required:
-                  - id
-                  - type
-                  - status
-                  - progress
-                  - reference
-                  - created_at
-                  - updated_at
-                  type: object
-                type: array
-              page:
-                type: integer
-              page_size:
-                type: integer
-              total:
-                type: integer
-            type: object
-      schemes:
-      - https
-      summary: List asynchronous tasks with pagination and filtering
   /api/v1/tasks/{id}:
     get:
       operationId: workspaceGetTask
@@ -2700,7 +1939,7 @@ produces:
 schemes:
 - https
 swagger: "2.0"
-x-date: "2026-07-30 00:48:19"
+x-date: "2026-08-14 01:28:30"
 x-description: This is a goctl generated swagger file.
 x-github: https://github.com/zeromicro/go-zero
 x-go-zero-doc: https://go-zero.dev/

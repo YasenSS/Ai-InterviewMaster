@@ -27,7 +27,7 @@ export function ResumeDetailPage({ id }: { id: string }) {
         <Card className="disabled-actions"><h2>管理简历</h2><p>重命名、重新解析和删除接口尚未开放。为了避免假成功，操作暂不可用。</p><button disabled><RefreshCw size={16} />重新解析</button><button disabled>重命名</button><button disabled>删除</button></Card>
       </div>
       {resume.status === "failed" ? <Alert title="这份简历解析失败" tone="danger">服务端尚未提供安全错误摘要。可在接口补齐后从这里重新解析。</Alert> : null}
-      {resume.status !== "completed" && resume.status !== "failed" ? <Alert title="简历仍在解析中" tone="info">稍后刷新页面查看最新结果，或前往任务中心跟踪进度。</Alert> : null}
+      {resume.status !== "completed" && resume.status !== "failed" ? <Alert title="简历仍在解析中" tone="info">稍后刷新页面即可查看最新解析结果。</Alert> : null}
       <section className="facts-section"><div className="section-card-head"><div><p className="eyebrow">结构化事实</p><h2>解析结果</h2></div><span>{resume.facts.length} 条</span></div>
         {!resume.facts.length ? <Card><p className="muted-copy">暂时还没有可展示的结构化事实。</p></Card> : Object.entries(grouped).map(([group, facts]) => <section className="fact-group" key={group}><h3>{group}</h3><div className="fact-list">{facts?.map((fact, index) => <Card key={`${fact.key}-${index}`}><p className="fact-key">{fact.key}</p><strong>{typeof fact.value === "string" ? fact.value : JSON.stringify(fact.value)}</strong><blockquote>{fact.excerpt || "暂无来源摘录"}</blockquote></Card>)}</div></section>)}
       </section>

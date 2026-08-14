@@ -30,7 +30,7 @@ export function ResumesPage() {
 
   return (
     <div className="page">
-      <PageHeader eyebrow="材料库" title="简历" description="管理用于生成题集和模拟面试的真实经历材料。" action={{ label: "上传简历", href: "/resumes/new" }} />
+      <PageHeader eyebrow="材料库" title="简历" description="管理用于模拟面试的真实经历材料。" action={{ label: "上传简历", href: "/resumes/new" }} />
       <div className="filter-bar" aria-label="简历筛选">
         <label>解析状态<Select value={status} onChange={(e) => setStatus(e.target.value)}><option value="all">全部状态</option><option value="completed">已解析</option><option value="processing">解析中</option><option value="pending">等待解析</option><option value="failed">解析失败</option></Select></label>
         <label>更新时间<Select value={sort} onChange={(e) => setSort(e.target.value)}><option value="desc">从新到旧</option><option value="asc">从旧到新</option></Select></label>
@@ -38,7 +38,7 @@ export function ResumesPage() {
       </div>
       {query.isPending ? <div className="stack">{[1,2,3].map((key) => <Skeleton className="skeleton-row" key={key} />)}</div> : null}
       {query.error ? <ErrorState error={normalizeError(query.error)} retry={() => query.refetch()} /> : null}
-      {!query.isPending && !query.error && !items.length ? <EmptyState title={status === "all" ? "还没有简历" : "没有符合筛选条件的简历"} description={status === "all" ? "上传简历后，我们会解析其中的经历事实，用于定制题集。" : "尝试切换解析状态查看其他简历。"} action={status === "all" ? { label: "上传第一份简历", href: "/resumes/new" } : undefined} /> : null}
+      {!query.isPending && !query.error && !items.length ? <EmptyState title={status === "all" ? "还没有简历" : "没有符合筛选条件的简历"} description={status === "all" ? "上传简历后，我们会解析其中的经历事实，用于动态模拟面试。" : "尝试切换解析状态查看其他简历。"} action={status === "all" ? { label: "上传第一份简历", href: "/resumes/new" } : undefined} /> : null}
       {items.length ? (
         <div className="responsive-list">
           <div className="desktop-table" role="table" aria-label="简历列表">

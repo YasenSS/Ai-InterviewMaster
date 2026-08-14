@@ -21,7 +21,7 @@
 
 ## 降级
 
-1. 将 `IM_AI_ENABLED=false` 并重启 API 与 Worker。题集和报告会进入 `degraded`，面试不再追问。
+1. 将 `IM_AI_ENABLED=false` 并重启 API 与 Worker。面试准备和报告会使用本地降级策略，动态追问会安全切换到下一个考点。
 2. 需要降低成本时设置 `IM_AI_SMALL_MODEL`，软额度会切到小模型。
 3. 追问超时或工具失败会自动进入下一道主问题，不要手工改 `interview_turns.ordinal`。
 

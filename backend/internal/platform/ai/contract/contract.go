@@ -81,7 +81,28 @@ type InterviewerDecision struct {
 const (
 	ActionFollowUp       = "follow_up"
 	ActionNextCapability = "next_capability"
+	ActionFinish         = "finish"
+
+	// DefaultMaxFollowUpDepth is the maximum number of consecutive follow-ups
+	// on one main-question thread. Keeping this in the contract makes the bound
+	// shared by orchestration code, tests, and evaluation gates.
+	DefaultMaxFollowUpDepth = 2
 )
+
+// InterviewerDecisionPolicy contains deterministic session-side guards for a
+// model decision. CapabilityKeys must retain blueprint order so a safe fallback
+// can advance to the next capability without relying on map iteration order.
+type InterviewerDecisionPolicy struct {
+	FollowUpsUsed          int
+	FollowUpBudget         int
+	CurrentFollowUpDepth   int
+	MaxFollowUpDepth       int
+	CompletedTurns         int
+	MinimumTurnsForFinish  int
+	CurrentCapability      string
+	CapabilityKeys         []string
+	AllowedEvidenceFactIDs map[string]struct{}
+}
 
 var DimensionWeights = []ScoreDimension{
 	{Key: "relevance", Weight: 25},
@@ -235,7 +256,7 @@ func ValidateReportDraft(value InterviewReportDraft) error {
 
 func ValidateInterviewerDecision(value InterviewerDecision) error {
 	switch value.Action {
-	case ActionFollowUp, ActionNextCapability:
+	case ActionFollowUp, ActionNextCapability, ActionFinish:
 	default:
 		return fmt.Errorf("unsupported interviewer action")
 	}
@@ -249,28 +270,190 @@ func ValidateInterviewerDecision(value InterviewerDecision) error {
 		if strings.TrimSpace(value.CapabilityKey) == "" {
 			return fmt.Errorf("capability_key required for follow_up")
 		}
+	} else if strings.TrimSpace(value.Question) != "" {
+		return fmt.Errorf("question must be empty unless action is follow_up")
+	}
+	if value.Action == ActionNextCapability && strings.TrimSpace(value.CapabilityKey) == "" {
+		return fmt.Errorf("capability_key required for next_capability")
+	}
+	if value.Action == ActionFinish && strings.TrimSpace(value.CapabilityKey) != "" {
+		return fmt.Errorf("capability_key must be empty for finish")
 	}
 	if len(value.EvidenceFactIDs) > 8 {
 		return fmt.Errorf("too many evidence fact ids")
 	}
+	seenEvidence := make(map[string]struct{}, len(value.EvidenceFactIDs))
+	for _, rawID := range value.EvidenceFactIDs {
+		factID := strings.TrimSpace(rawID)
+		if factID == "" || utf8.RuneCountInString(factID) > 200 {
+			return fmt.Errorf("invalid evidence fact id")
+		}
+		if _, exists := seenEvidence[factID]; exists {
+			return fmt.Errorf("duplicate evidence fact id")
+		}
+		seenEvidence[factID] = struct{}{}
+	}
 	return nil
 }
 
-// AcceptFollowUp applies blueprint and session guards. The model cannot end
-// the interview or exceed the follow-up budget.
-func AcceptFollowUp(decision InterviewerDecision, followUpsUsed, followUpBudget int, currentIsFollowUp bool, currentCapability string, allowedCapabilities map[string]struct{}) InterviewerDecision {
-	if currentIsFollowUp || followUpBudget-followUpsUsed < 1 {
-		return InterviewerDecision{Action: ActionNextCapability, Reason: "follow-up budget exhausted or nested follow-up rejected"}
+// NextCapabilityDecision returns a deterministic, structurally valid safe
+// fallback. It advances in blueprint order and wraps when needed.
+func NextCapabilityDecision(currentCapability string, capabilityKeys []string, reason string) InterviewerDecision {
+	keys := uniqueNonEmptyStrings(capabilityKeys)
+	next := ""
+	if len(keys) > 0 {
+		next = keys[0]
+		for index, key := range keys {
+			if key == strings.TrimSpace(currentCapability) {
+				next = keys[(index+1)%len(keys)]
+				break
+			}
+		}
 	}
-	if err := ValidateInterviewerDecision(decision); err != nil || decision.Action != ActionFollowUp {
-		return InterviewerDecision{Action: ActionNextCapability, Reason: "invalid or next-capability decision"}
+	if next == "" {
+		next = strings.TrimSpace(currentCapability)
 	}
-	if len(allowedCapabilities) > 0 {
-		if _, ok := allowedCapabilities[decision.CapabilityKey]; !ok {
-			decision.CapabilityKey = strings.TrimSpace(currentCapability)
+	// Blueprints are validated before interviewing and therefore normally
+	// provide at least two keys. "general" keeps the fail-closed decision usable
+	// even if a corrupt legacy blueprint reaches this layer.
+	if next == "" {
+		next = "general"
+	}
+	return InterviewerDecision{
+		Action:          ActionNextCapability,
+		Question:        "",
+		CapabilityKey:   next,
+		EvidenceFactIDs: []string{},
+		Reason:          clippedDecisionReason(reason),
+	}
+}
+
+// AcceptInterviewerDecision applies deterministic blueprint/session guards to
+// untrusted model output. Any invalid or out-of-policy output safely becomes a
+// next_capability decision; model output can never expand the configured
+// follow-up budget or depth.
+func AcceptInterviewerDecision(decision InterviewerDecision, policy InterviewerDecisionPolicy) InterviewerDecision {
+	fallback := func(reason string) InterviewerDecision {
+		return NextCapabilityDecision(policy.CurrentCapability, policy.CapabilityKeys, reason)
+	}
+	if err := ValidateInterviewerDecision(decision); err != nil {
+		return fallback("invalid interviewer decision")
+	}
+
+	allowedCapabilities := make(map[string]struct{}, len(policy.CapabilityKeys))
+	for _, key := range policy.CapabilityKeys {
+		key = strings.TrimSpace(key)
+		if key != "" {
+			allowedCapabilities[key] = struct{}{}
+		}
+	}
+	if decision.Action != ActionFinish {
+		if _, ok := allowedCapabilities[strings.TrimSpace(decision.CapabilityKey)]; !ok {
+			return fallback("unknown capability key")
+		}
+	}
+	if policy.AllowedEvidenceFactIDs != nil {
+		for _, factID := range decision.EvidenceFactIDs {
+			if _, ok := policy.AllowedEvidenceFactIDs[strings.TrimSpace(factID)]; !ok {
+				return fallback("unknown evidence fact id")
+			}
+		}
+	}
+
+	decision.Question = strings.TrimSpace(decision.Question)
+	decision.CapabilityKey = strings.TrimSpace(decision.CapabilityKey)
+	decision.Reason = strings.TrimSpace(decision.Reason)
+	for index := range decision.EvidenceFactIDs {
+		decision.EvidenceFactIDs[index] = strings.TrimSpace(decision.EvidenceFactIDs[index])
+	}
+
+	switch decision.Action {
+	case ActionFollowUp:
+		maxDepth := policy.MaxFollowUpDepth
+		if maxDepth <= 0 || maxDepth > DefaultMaxFollowUpDepth {
+			maxDepth = DefaultMaxFollowUpDepth
+		}
+		if policy.FollowUpBudget <= policy.FollowUpsUsed {
+			return fallback("follow-up budget exhausted")
+		}
+		if policy.CurrentFollowUpDepth >= maxDepth {
+			return fallback("follow-up depth exhausted")
+		}
+		currentCapability := strings.TrimSpace(policy.CurrentCapability)
+		if currentCapability != "" && decision.CapabilityKey != currentCapability {
+			return fallback("follow-up changed capability")
+		}
+	case ActionFinish:
+		if policy.MinimumTurnsForFinish > 0 && policy.CompletedTurns < policy.MinimumTurnsForFinish {
+			return fallback("minimum interview turns not completed")
 		}
 	}
 	return decision
+}
+
+// AcceptFollowUp is retained for legacy callers. New orchestration should use
+// AcceptInterviewerDecision so it can accept next_capability and finish actions.
+func AcceptFollowUp(decision InterviewerDecision, followUpsUsed, followUpBudget int, currentIsFollowUp bool, currentCapability string, allowedCapabilities map[string]struct{}) InterviewerDecision {
+	keys := make([]string, 0, len(allowedCapabilities))
+	currentCapability = strings.TrimSpace(currentCapability)
+	if currentCapability != "" {
+		if _, ok := allowedCapabilities[currentCapability]; ok {
+			keys = append(keys, currentCapability)
+		}
+	}
+	for key := range allowedCapabilities {
+		if strings.TrimSpace(key) != "" && key != currentCapability {
+			keys = append(keys, key)
+		}
+	}
+	depth := 0
+	maxDepth := DefaultMaxFollowUpDepth
+	if currentIsFollowUp {
+		// Preserve the old API's nested-follow-up rejection semantics.
+		depth = 1
+		maxDepth = 1
+	}
+	accepted := AcceptInterviewerDecision(decision, InterviewerDecisionPolicy{
+		FollowUpsUsed:        followUpsUsed,
+		FollowUpBudget:       followUpBudget,
+		CurrentFollowUpDepth: depth,
+		MaxFollowUpDepth:     maxDepth,
+		CurrentCapability:    currentCapability,
+		CapabilityKeys:       keys,
+	})
+	if accepted.Action != ActionFollowUp {
+		return NextCapabilityDecision(currentCapability, keys, "invalid or unavailable follow-up")
+	}
+	return accepted
+}
+
+func uniqueNonEmptyStrings(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, exists := seen[value]; exists {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	return result
+}
+
+func clippedDecisionReason(reason string) string {
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		return "safe fallback"
+	}
+	if utf8.RuneCountInString(reason) <= 500 {
+		return reason
+	}
+	runes := []rune(reason)
+	return string(runes[:500])
 }
 
 // AggregateScore computes a deterministic overall score from model dimensions.

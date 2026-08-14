@@ -19,6 +19,8 @@ const (
 	InterviewStatusActive    InterviewStatus = "active"
 	InterviewStatusCompleted InterviewStatus = "completed"
 	InterviewStatusAbandoned InterviewStatus = "abandoned"
+	InterviewStatusPreparing InterviewStatus = "preparing"
+	InterviewStatusFailed    InterviewStatus = "failed"
 )
 
 func (e *InterviewStatus) Scan(src interface{}) error {
@@ -59,8 +61,11 @@ func (ns NullInterviewStatus) Value() (driver.Value, error) {
 type QuestionSetStatus string
 
 const (
-	QuestionSetStatusReady    QuestionSetStatus = "ready"
-	QuestionSetStatusArchived QuestionSetStatus = "archived"
+	QuestionSetStatusReady      QuestionSetStatus = "ready"
+	QuestionSetStatusArchived   QuestionSetStatus = "archived"
+	QuestionSetStatusGenerating QuestionSetStatus = "generating"
+	QuestionSetStatusFailed     QuestionSetStatus = "failed"
+	QuestionSetStatusDegraded   QuestionSetStatus = "degraded"
 )
 
 func (e *QuestionSetStatus) Scan(src interface{}) error {
@@ -222,6 +227,10 @@ type InterviewReport struct {
 	QualityGate  []byte             `json:"quality_gate"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+	Status       string             `json:"status"`
+	ErrorCode    pgtype.Text        `json:"error_code"`
+	ErrorSummary pgtype.Text        `json:"error_summary"`
+	Degraded     bool               `json:"degraded"`
 }
 
 type InterviewSession struct {
@@ -229,7 +238,6 @@ type InterviewSession struct {
 	UserID                  pgtype.UUID        `json:"user_id"`
 	ResumeID                pgtype.UUID        `json:"resume_id"`
 	QuestionSetID           pgtype.UUID        `json:"question_set_id"`
-	JobDescriptionID        pgtype.UUID        `json:"job_description_id"`
 	Title                   string             `json:"title"`
 	Status                  InterviewStatus    `json:"status"`
 	CurrentOrdinal          int32              `json:"current_ordinal"`
@@ -239,6 +247,14 @@ type InterviewSession struct {
 	StartedAt               pgtype.Timestamptz `json:"started_at"`
 	DurationSeconds         int32              `json:"duration_seconds"`
 	QuestionDurationSeconds int32              `json:"question_duration_seconds"`
+	Blueprint               []byte             `json:"blueprint"`
+	CurrentCapabilityKey    pgtype.Text        `json:"current_capability_key"`
+	FollowUpsUsed           int32              `json:"follow_ups_used"`
+	FollowUpBudget          int32              `json:"follow_up_budget"`
+	InterviewerModel        pgtype.Text        `json:"interviewer_model"`
+	PrimaryLanguage         string             `json:"primary_language"`
+	TargetCompany           string             `json:"target_company"`
+	ResumeVersionID         pgtype.UUID        `json:"resume_version_id"`
 }
 
 type InterviewTurn struct {
@@ -252,6 +268,11 @@ type InterviewTurn struct {
 	StartedAt        pgtype.Timestamptz `json:"started_at"`
 	SkippedAt        pgtype.Timestamptz `json:"skipped_at"`
 	TimeSpentSeconds int32              `json:"time_spent_seconds"`
+	TurnKind         string             `json:"turn_kind"`
+	ParentTurnID     pgtype.UUID        `json:"parent_turn_id"`
+	CapabilityKey    pgtype.Text        `json:"capability_key"`
+	InvocationID     pgtype.UUID        `json:"invocation_id"`
+	SourceQuestionID pgtype.UUID        `json:"source_question_id"`
 }
 
 type InterviewTurnReport struct {
@@ -264,15 +285,44 @@ type InterviewTurnReport struct {
 	Evidence     []byte      `json:"evidence"`
 }
 
-type JobDescription struct {
-	ID                    pgtype.UUID        `json:"id"`
-	UserID                pgtype.UUID        `json:"user_id"`
-	Company               pgtype.Text        `json:"company"`
-	Title                 string             `json:"title"`
-	Content               string             `json:"content"`
-	ExtractedCapabilities []byte             `json:"extracted_capabilities"`
-	CreatedAt             pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt             pgtype.Timestamptz `json:"updated_at"`
+// AI call audit. Query cost outliers with: SELECT user_id, date_trunc('day', created_at) AS day, sum(total_tokens), sum(estimated_cost_micros) FROM model_invocations GROUP BY 1, 2 ORDER BY 4 DESC;
+type ModelInvocation struct {
+	ID                  pgtype.UUID        `json:"id"`
+	UserID              pgtype.UUID        `json:"user_id"`
+	TaskID              pgtype.UUID        `json:"task_id"`
+	SessionID           pgtype.UUID        `json:"session_id"`
+	ResourceType        string             `json:"resource_type"`
+	ResourceID          pgtype.UUID        `json:"resource_id"`
+	Provider            string             `json:"provider"`
+	Model               string             `json:"model"`
+	PromptKey           string             `json:"prompt_key"`
+	PromptVersion       string             `json:"prompt_version"`
+	Status              string             `json:"status"`
+	Attempt             int16              `json:"attempt"`
+	InputHash           pgtype.Text        `json:"input_hash"`
+	OutputHash          pgtype.Text        `json:"output_hash"`
+	PromptTokens        int32              `json:"prompt_tokens"`
+	CompletionTokens    int32              `json:"completion_tokens"`
+	TotalTokens         int32              `json:"total_tokens"`
+	EstimatedCostMicros int64              `json:"estimated_cost_micros"`
+	LatencyMs           int32              `json:"latency_ms"`
+	ErrorCode           pgtype.Text        `json:"error_code"`
+	TraceID             pgtype.Text        `json:"trace_id"`
+	RequestID           pgtype.Text        `json:"request_id"`
+	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+	CompletedAt         pgtype.Timestamptz `json:"completed_at"`
+}
+
+type PublicIntelItem struct {
+	ID          pgtype.UUID        `json:"id"`
+	Company     string             `json:"company"`
+	Role        string             `json:"role"`
+	Topic       string             `json:"topic"`
+	Summary     string             `json:"summary"`
+	SourceName  string             `json:"source_name"`
+	SourceUrl   pgtype.Text        `json:"source_url"`
+	Fingerprint string             `json:"fingerprint"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
 type Question struct {
@@ -284,18 +334,26 @@ type Question struct {
 	ExpectedPoints  []byte      `json:"expected_points"`
 	EvidenceFactIds []byte      `json:"evidence_fact_ids"`
 	FollowUpHint    pgtype.Text `json:"follow_up_hint"`
+	CapabilityKey   pgtype.Text `json:"capability_key"`
+	Difficulty      pgtype.Text `json:"difficulty"`
 }
 
 type QuestionSet struct {
 	ID                  pgtype.UUID        `json:"id"`
 	UserID              pgtype.UUID        `json:"user_id"`
 	ResumeID            pgtype.UUID        `json:"resume_id"`
-	JobDescriptionID    pgtype.UUID        `json:"job_description_id"`
 	TargetRole          pgtype.Text        `json:"target_role"`
 	Status              QuestionSetStatus  `json:"status"`
 	CreatedAt           pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
 	SourceQuestionSetID pgtype.UUID        `json:"source_question_set_id"`
+	Blueprint           []byte             `json:"blueprint"`
+	InputHash           pgtype.Text        `json:"input_hash"`
+	PromptVersion       pgtype.Text        `json:"prompt_version"`
+	ModelName           pgtype.Text        `json:"model_name"`
+	PrimaryLanguage     string             `json:"primary_language"`
+	TargetCompany       string             `json:"target_company"`
+	ResumeVersionID     pgtype.UUID        `json:"resume_version_id"`
 }
 
 type RefreshSession struct {
@@ -354,6 +412,8 @@ type ResumeVersion struct {
 	ParseError       pgtype.Text        `json:"parse_error"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	ProcessedAt      pgtype.Timestamptz `json:"processed_at"`
+	ExtractorModel   pgtype.Text        `json:"extractor_model"`
+	PromptVersion    pgtype.Text        `json:"prompt_version"`
 }
 
 type User struct {
@@ -363,4 +423,13 @@ type User struct {
 	DisplayName  string             `json:"display_name"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+}
+
+type UserSkillProfile struct {
+	UserID          pgtype.UUID        `json:"user_id"`
+	Strengths       []byte             `json:"strengths"`
+	Gaps            []byte             `json:"gaps"`
+	Notes           string             `json:"notes"`
+	SourceSessionID pgtype.UUID        `json:"source_session_id"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
 }

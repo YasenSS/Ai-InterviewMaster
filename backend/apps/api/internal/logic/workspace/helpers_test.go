@@ -2,8 +2,6 @@ package workspace
 
 import (
 	"testing"
-
-	"github.com/interviewmaster/interviewmaster/backend/apps/api/internal/types"
 )
 
 func TestPageParams(t *testing.T) {
@@ -30,15 +28,5 @@ func TestParseEnumFilterSupportsRepeatedAndCommaSeparatedValues(t *testing.T) {
 	}
 	if len(values) != 2 || values[0] != "active" || values[1] != "completed" {
 		t.Fatalf("values = %#v", values)
-	}
-}
-
-func TestValidateQuestionInputsRequiresContinuousOrdinals(t *testing.T) {
-	_, err := validateQuestionInputs([]types.QuestionInput{
-		{Ordinal: 1, Question: "One?", Intent: "Intent", ExpectedPoints: []string{}},
-		{Ordinal: 3, Question: "Three?", Intent: "Intent", ExpectedPoints: []string{}},
-	})
-	if err == nil {
-		t.Fatal("non-continuous ordinals were accepted")
 	}
 }

@@ -1,2 +1,5 @@
-import { InterviewsPage } from "@/features/interviews/InterviewsPage";
-export default function Page() { return <InterviewsPage />; }
+import { redirect } from "next/navigation";
+
+export default function Page() {
+  redirect("/interviews/records");
+}

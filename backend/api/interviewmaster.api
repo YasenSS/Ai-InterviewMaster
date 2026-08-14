@@ -66,8 +66,14 @@ type DeleteAccountRequest {
 }
 
 type AccountExportResponse {
-	ExportedAt string       `json:"exported_at"`
-	User       UserResponse `json:"user"`
+	ExportedAt       string       `json:"exported_at"`
+	User             UserResponse `json:"user"`
+	Resumes          interface{}  `json:"resumes"`
+	Interviews       interface{}  `json:"interviews"`
+	Reports          interface{}  `json:"reports"`
+	Tasks            interface{}  `json:"tasks"`
+	SkillProfile     interface{}  `json:"skill_profile"`
+	ModelInvocations interface{}  `json:"model_invocations"`
 }
 
 type SkillProfileResponse {
@@ -184,143 +190,15 @@ type ResumePageResponse {
 	Total    int64                   `json:"total"`
 }
 
-type CreateJobDescriptionRequest {
-	Company string `json:"company,optional"`
-	Title   string `json:"title"`
-	Content string `json:"content"`
-}
-
-type UpdateJobDescriptionRequest {
-	Id      string `path:"id"`
-	Company string `json:"company,optional"`
-	Title   string `json:"title,optional"`
-	Content string `json:"content,optional"`
-}
-
-type JobDescriptionPath {
-	Id string `path:"id"`
-}
-
-type JobDescriptionResponse {
-	Id           string   `json:"id"`
-	Company      string   `json:"company,optional"`
-	Title        string   `json:"title"`
-	Content      string   `json:"content"`
-	Capabilities []string `json:"capabilities"`
-	CreatedAt    string   `json:"created_at"`
-	UpdatedAt    string   `json:"updated_at"`
-}
-
-type JobDescriptionPageResponse {
-	Items    []JobDescriptionResponse `json:"items"`
-	Page     int                      `json:"page"`
-	PageSize int                      `json:"page_size"`
-	Total    int64                    `json:"total"`
-}
-
-type CreateQuestionSetRequest {
-	ResumeId         string `json:"resume_id"`
-	JobDescriptionId string `json:"job_description_id,optional"`
-	TargetRole       string `json:"target_role,optional"`
-}
-
-type QuestionInput {
-	Ordinal         int      `json:"ordinal"`
-	Question        string   `json:"question"`
-	Intent          string   `json:"intent"`
-	ExpectedPoints  []string `json:"expected_points"`
-	FollowUpHint    string   `json:"follow_up_hint,optional"`
-	CapabilityKey   string   `json:"capability_key,optional"`
-	Difficulty      string   `json:"difficulty,optional"`
-	EvidenceFactIds []string `json:"evidence_fact_ids,optional"`
-}
-
-type QuestionResponse {
-	Id              string   `json:"id"`
-	Ordinal         int      `json:"ordinal"`
-	Question        string   `json:"question"`
-	Intent          string   `json:"intent"`
-	ExpectedPoints  []string `json:"expected_points"`
-	FollowUpHint    string   `json:"follow_up_hint,optional"`
-	CapabilityKey   string   `json:"capability_key,optional"`
-	Difficulty      string   `json:"difficulty,optional"`
-	EvidenceFactIds []string `json:"evidence_fact_ids,optional"`
-}
-
 type ResumeReferenceResponse {
 	Id    string `json:"id"`
 	Title string `json:"title"`
 }
 
-type JobDescriptionReferenceResponse {
-	Id      string `json:"id"`
-	Company string `json:"company,optional"`
-	Title   string `json:"title"`
-}
-
-type QuestionSetReferenceResponse {
-	Id         string `json:"id"`
-	TargetRole string `json:"target_role,optional"`
-}
-
-type QuestionSetSummaryResponse {
-	Id                  string                           `json:"id"`
-	ResumeId            string                           `json:"resume_id"`
-	JobDescriptionId    string                           `json:"job_description_id,optional"`
-	Resume              ResumeReferenceResponse          `json:"resume"`
-	JobDescription      *JobDescriptionReferenceResponse `json:"job_description,optional"`
-	TargetRole          string                           `json:"target_role,optional"`
-	Status              string                           `json:"status"`
-	QuestionCount       int                              `json:"question_count"`
-	SourceQuestionSetId string                           `json:"source_question_set_id,optional"`
-	Degraded            bool                             `json:"degraded"`
-	TaskId              string                           `json:"task_id,optional"`
-	CreatedAt           string                           `json:"created_at"`
-	UpdatedAt           string                           `json:"updated_at"`
-}
-
-type QuestionSetDetailResponse {
-	QuestionSetSummaryResponse
-	Questions []QuestionResponse `json:"questions"`
-}
-
-type QuestionSetListRequest {
-	Status   []string `form:"status,optional"`
-	ResumeId string   `form:"resume_id,optional"`
-	Page     int      `form:"page,default=1"`
-	PageSize int      `form:"page_size,default=20"`
-	Sort     string   `form:"sort,optional"`
-}
-
-type QuestionSetPageResponse {
-	Items    []QuestionSetSummaryResponse `json:"items"`
-	Page     int                          `json:"page"`
-	PageSize int                          `json:"page_size"`
-	Total    int64                        `json:"total"`
-}
-
-type QuestionSetPath {
-	Id string `path:"id"`
-}
-
-type UpdateQuestionSetRequest {
-	Id         string          `path:"id"`
-	TargetRole string          `json:"target_role,optional"`
-	Status     string          `json:"status,optional"`
-	Questions  []QuestionInput `json:"questions,optional"`
-}
-
-type RegenerateQuestionSetRequest {
-	Id               string `path:"id"`
-	JobDescriptionId string `json:"job_description_id,optional"`
-	TargetRole       string `json:"target_role,optional"`
-}
-
 type CreateInterviewRequest {
 	ResumeId                string `json:"resume_id"`
-	QuestionSetId           string `json:"question_set_id"`
-	JobDescriptionId        string `json:"job_description_id,optional"`
-	Title                   string `json:"title"`
+	PrimaryLanguage         string `json:"primary_language"`
+	TargetCompany           string `json:"target_company"`
 	QuestionDurationSeconds int    `json:"question_duration_seconds,optional"`
 }
 
@@ -339,28 +217,30 @@ type InterviewTurnResponse {
 }
 
 type InterviewSummaryResponse {
-	Id              string                        `json:"id"`
-	Title           string                        `json:"title"`
-	Status          string                        `json:"status"`
-	QuestionSet     *QuestionSetReferenceResponse `json:"question_set,optional"`
-	Resume          ResumeReferenceResponse       `json:"resume"`
-	QuestionCount   int                           `json:"question_count"`
-	AnsweredCount   int                           `json:"answered_count"`
-	SkippedCount    int                           `json:"skipped_count"`
-	CurrentOrdinal  int                           `json:"current_ordinal"`
-	OverallScore    *int                          `json:"overall_score,optional"`
-	StartedAt       string                        `json:"started_at,optional"`
-	CompletedAt     string                        `json:"completed_at,optional"`
-	DurationSeconds int                           `json:"duration_seconds"`
-	CreatedAt       string                        `json:"created_at"`
-	UpdatedAt       string                        `json:"updated_at"`
+	Id              string                  `json:"id"`
+	Title           string                  `json:"title"`
+	Status          string                  `json:"status"`
+	PrimaryLanguage string                  `json:"primary_language"`
+	TargetCompany   string                  `json:"target_company"`
+	TargetRole      string                  `json:"target_role"`
+	Resume          ResumeReferenceResponse `json:"resume"`
+	QuestionCount   int                     `json:"question_count"`
+	AnsweredCount   int                     `json:"answered_count"`
+	SkippedCount    int                     `json:"skipped_count"`
+	CurrentOrdinal  int                     `json:"current_ordinal"`
+	OverallScore    *int                    `json:"overall_score,optional"`
+	StartedAt       string                  `json:"started_at,optional"`
+	CompletedAt     string                  `json:"completed_at,optional"`
+	DurationSeconds int                     `json:"duration_seconds"`
+	CreatedAt       string                  `json:"created_at"`
+	UpdatedAt       string                  `json:"updated_at"`
 }
 
 type InterviewSessionResponse {
 	InterviewSummaryResponse
-	JobDescription          *JobDescriptionReferenceResponse `json:"job_description,optional"`
-	QuestionDurationSeconds int                              `json:"question_duration_seconds"`
-	Turns                   []InterviewTurnResponse          `json:"turns"`
+	TaskId                  string                  `json:"task_id,optional"`
+	QuestionDurationSeconds int                     `json:"question_duration_seconds"`
+	Turns                   []InterviewTurnResponse `json:"turns"`
 }
 
 type InterviewPath {
@@ -460,25 +340,8 @@ type TaskResponse {
 	CompletedAt   string                `json:"completed_at,optional"`
 }
 
-type TaskListRequest {
-	Status   []string `form:"status,optional"`
-	Type     string   `form:"type,optional"`
-	Page     int      `form:"page,default=1"`
-	PageSize int      `form:"page_size,default=20"`
-	Sort     string   `form:"sort,optional"`
-}
-
-type TaskPageResponse {
-	Items    []TaskResponse `json:"items"`
-	Page     int            `json:"page"`
-	PageSize int            `json:"page_size"`
-	Total    int64          `json:"total"`
-}
-
 type DashboardCountsResponse {
 	Resumes             int64 `json:"resumes"`
-	JobDescriptions     int64 `json:"job_descriptions"`
-	QuestionSets        int64 `json:"question_sets"`
 	Interviews          int64 `json:"interviews"`
 	CompletedInterviews int64 `json:"completed_interviews"`
 }
@@ -495,14 +358,12 @@ type ImprovementTopicResponse {
 }
 
 type DashboardSummaryResponse {
-	Counts                DashboardCountsResponse    `json:"counts"`
-	AverageScore          *float64                   `json:"average_score,optional"`
-	ScoreTrend            []ScoreTrendResponse       `json:"score_trend"`
-	ImprovementTopics     []ImprovementTopicResponse `json:"improvement_topics"`
-	RecentResumes         []ResumeSummaryResponse    `json:"recent_resumes"`
-	RecentJobDescriptions []JobDescriptionResponse   `json:"recent_job_descriptions"`
-	RecentInterviews      []InterviewSummaryResponse `json:"recent_interviews"`
-	ActiveTasks           []TaskResponse             `json:"active_tasks"`
+	Counts            DashboardCountsResponse    `json:"counts"`
+	AverageScore      *float64                   `json:"average_score,optional"`
+	ScoreTrend        []ScoreTrendResponse       `json:"score_trend"`
+	ImprovementTopics []ImprovementTopicResponse `json:"improvement_topics"`
+	RecentResumes     []ResumeSummaryResponse    `json:"recent_resumes"`
+	RecentInterviews  []InterviewSummaryResponse `json:"recent_interviews"`
 }
 
 type CompanyIntelRequest {
@@ -642,51 +503,7 @@ service InterviewMaster {
 	@handler ReparseResume
 	post /resumes/:id/reparse (ResumePath) returns (TaskAcceptedResponse)
 
-	@doc "Create a job description"
-	@handler CreateJobDescription
-	post /job-descriptions (CreateJobDescriptionRequest) returns (JobDescriptionResponse)
-
-	@doc "List job descriptions with pagination"
-	@handler ListJobDescriptions
-	get /job-descriptions (PageRequest) returns (JobDescriptionPageResponse)
-
-	@doc "Return a job description"
-	@handler GetJobDescription
-	get /job-descriptions/:id (JobDescriptionPath) returns (JobDescriptionResponse)
-
-	@doc "Update a job description and re-extract capabilities"
-	@handler UpdateJobDescription
-	patch /job-descriptions/:id (UpdateJobDescriptionRequest) returns (JobDescriptionResponse)
-
-	@doc "Delete a job description while preserving history"
-	@handler DeleteJobDescription
-	delete /job-descriptions/:id (JobDescriptionPath)
-
-	@doc "Enqueue question-set generation"
-	@handler CreateQuestionSet
-	post /question-sets (CreateQuestionSetRequest) returns (TaskAcceptedResponse)
-
-	@doc "List question sets with pagination and filtering"
-	@handler ListQuestionSets
-	get /question-sets (QuestionSetListRequest) returns (QuestionSetPageResponse)
-
-	@doc "Return a question set and its questions"
-	@handler GetQuestionSet
-	get /question-sets/:id (QuestionSetPath) returns (QuestionSetDetailResponse)
-
-	@doc "Replace question-set content transactionally"
-	@handler UpdateQuestionSet
-	patch /question-sets/:id (UpdateQuestionSetRequest) returns (QuestionSetDetailResponse)
-
-	@doc "Delete an unused question set"
-	@handler DeleteQuestionSet
-	delete /question-sets/:id (QuestionSetPath)
-
-	@doc "Regenerate a question set with lineage"
-	@handler RegenerateQuestionSet
-	post /question-sets/:id/regenerate (RegenerateQuestionSetRequest) returns (TaskAcceptedResponse)
-
-	@doc "Create an interview from a question snapshot"
+	@doc "Prepare an interview from a resume, language and target company"
 	@handler CreateInterview
 	post /interviews (CreateInterviewRequest) returns (InterviewSessionResponse)
 
@@ -717,10 +534,6 @@ service InterviewMaster {
 	@doc "Return or generate the unique interview report"
 	@handler GetInterviewReport
 	get /interviews/:id/report (InterviewPath) returns (InterviewReportResponse)
-
-	@doc "List asynchronous tasks with pagination and filtering"
-	@handler ListTasks
-	get /tasks (TaskListRequest) returns (TaskPageResponse)
 
 	@doc "Return asynchronous task state"
 	@handler GetTask

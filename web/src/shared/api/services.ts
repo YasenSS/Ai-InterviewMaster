@@ -1,27 +1,26 @@
 import type {
   AuthResponse,
-  CreateJobDescriptionRequest,
-  CreateInterviewRequest,
-  CreateQuestionSetRequest,
   CreateResumeUploadRequest,
   CreateResumeUploadResponse,
   InterviewPageResponse,
   InterviewReportResponse,
   InterviewSessionResponse,
-  JobDescriptionPageResponse,
-  JobDescriptionResponse,
-  QuestionSetDetailResponse,
-  QuestionSetPageResponse,
   ResumePageResponse,
   ResumeDetailResponse,
   TaskAcceptedResponse,
-  TaskPageResponse,
   TaskResponse,
   UserResponse,
   SkillProfileResponse,
   AccountExportResponse,
 } from "./generated/InterviewMasterComponents";
 import { apiRequest } from "./client";
+
+export type CreateInterviewInput = {
+  resume_id: string;
+  primary_language: string;
+  target_company: string;
+  question_duration_seconds?: number;
+};
 
 export const api = {
   login: (body: { email: string; password: string }) =>
@@ -58,24 +57,15 @@ export const api = {
       { method: "POST" },
     ),
   task: (id: string) => apiRequest<TaskResponse>(`/api/v1/tasks/${id}`),
-  tasks: () => apiRequest<TaskPageResponse>("/api/v1/tasks?page=1&page_size=50"),
   retryTask: (id: string) =>
     apiRequest<TaskAcceptedResponse>(`/api/v1/tasks/${id}/retry`, { method: "POST" }),
-  jobs: async () => (await apiRequest<JobDescriptionPageResponse>("/api/v1/job-descriptions")).items,
-  createJob: (body: CreateJobDescriptionRequest) =>
-    apiRequest<JobDescriptionResponse>("/api/v1/job-descriptions", {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
-  questionSets: async () => (await apiRequest<QuestionSetPageResponse>("/api/v1/question-sets")).items,
-  questionSet: (id: string) => apiRequest<QuestionSetDetailResponse>(`/api/v1/question-sets/${id}`),
-  createQuestionSet: (body: CreateQuestionSetRequest) =>
-    apiRequest<TaskAcceptedResponse>("/api/v1/question-sets", {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
   interviews: async () => (await apiRequest<InterviewPageResponse>("/api/v1/interviews")).items,
-  createInterview: (body: CreateInterviewRequest) =>
+  interviewPage: (params: { page: number; page_size: number; status?: string }) => {
+    const search = new URLSearchParams({ page: String(params.page), page_size: String(params.page_size) });
+    if (params.status) search.append("status", params.status);
+    return apiRequest<InterviewPageResponse>(`/api/v1/interviews?${search.toString()}`);
+  },
+  createInterview: (body: CreateInterviewInput) =>
     apiRequest<InterviewSessionResponse>("/api/v1/interviews", {
       method: "POST",
       body: JSON.stringify(body),

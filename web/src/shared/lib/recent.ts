@@ -1,17 +1,12 @@
-import type {
-  InterviewSessionResponse,
-  QuestionSetDetailResponse,
-} from "@/shared/api/generated/InterviewMasterComponents";
+import type { InterviewSessionResponse } from "@/shared/api/generated/InterviewMasterComponents";
 
 type RecentData = {
-  questionSets: QuestionSetDetailResponse[];
   interviews: InterviewSessionResponse[];
-  taskIds: string[];
 };
 
 export const RECENT_KEY = "im_recent_resources";
 const RECENT_EVENT = "im-recent";
-const empty: RecentData = { questionSets: [], interviews: [], taskIds: [] };
+const empty: RecentData = { interviews: [] };
 
 export function getRecent(): RecentData {
   if (typeof window === "undefined") return empty;
@@ -22,23 +17,9 @@ export function getRecent(): RecentData {
   }
 }
 
-export function rememberQuestionSet(item: QuestionSetDetailResponse) {
-  const data = getRecent();
-  data.questionSets = [item, ...data.questionSets.filter((value) => value.id !== item.id)].slice(0, 20);
-  localStorage.setItem(RECENT_KEY, JSON.stringify(data));
-  window.dispatchEvent(new Event(RECENT_EVENT));
-}
-
 export function rememberInterview(item: InterviewSessionResponse) {
   const data = getRecent();
   data.interviews = [item, ...data.interviews.filter((value) => value.id !== item.id)].slice(0, 20);
-  localStorage.setItem(RECENT_KEY, JSON.stringify(data));
-  window.dispatchEvent(new Event(RECENT_EVENT));
-}
-
-export function rememberTask(id: string) {
-  const data = getRecent();
-  data.taskIds = [id, ...data.taskIds.filter((value) => value !== id)].slice(0, 20);
   localStorage.setItem(RECENT_KEY, JSON.stringify(data));
   window.dispatchEvent(new Event(RECENT_EVENT));
 }

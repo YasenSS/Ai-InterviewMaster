@@ -13,7 +13,6 @@ import { FormField, Input } from "@/components/ui/Form";
 import { api } from "@/shared/api/services";
 import { normalizeError, uploadFile } from "@/shared/api/client";
 import { cacheTimes, queryKeys } from "@/shared/api/query";
-import { rememberTask } from "@/shared/lib/recent";
 
 const accepted = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"];
 const maxSize = 20 * 1024 * 1024;
@@ -49,7 +48,6 @@ export function ResumeUploadPage() {
       await uploadFile(ticket.upload_url, file, ticket.upload_headers, setProgress);
       const result = await api.completeResumeUpload(ticket.resume_id, ticket.version_id);
       setTaskId(result.task_id);
-      rememberTask(result.task_id);
       return ticket;
     },
   });
@@ -103,7 +101,7 @@ export function ResumeUploadPage() {
           <div className="processing-state">
             {task.data?.status === "succeeded" ? <CheckCircle2 /> : <span className="processing-orb" />}
             <h2>{task.data?.status === "failed" ? "解析未成功" : task.data?.status === "succeeded" ? "解析完成" : "正在理解简历内容"}</h2>
-            <p>{task.data?.status === "failed" ? "你可以稍后在任务中心查看详情；重新解析接口尚未开放。" : "你可以离开此页面，任务会继续执行，并保留在任务中心。"}</p>
+            <p>{task.data?.status === "failed" ? "解析未成功，请重新上传文件后再试。" : "你可以离开此页面，解析会在后台继续；稍后从简历列表查看结果。"}</p>
             <Progress value={task.data?.progress ?? 0} label="解析进度" />
             {error || task.data?.status === "failed" ? <Alert title={error?.message ?? "解析失败，请稍后重试。"} tone="danger">{error?.requestId ? `请求 ID：${error.requestId}` : null}</Alert> : null}
           </div>

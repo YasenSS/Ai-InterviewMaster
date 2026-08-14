@@ -36,14 +36,19 @@ export function SettingsPage() {
   });
 
   useEffect(() => {
-    if (user?.display_name) setDisplayName(user.display_name);
+    if (!user?.display_name) return;
+    const timer = window.setTimeout(() => setDisplayName(user.display_name), 0);
+    return () => window.clearTimeout(timer);
   }, [user?.display_name]);
 
   useEffect(() => {
     if (!profileQuery.data) return;
-    setStrengths(profileQuery.data.strengths.join("\n"));
-    setGaps(profileQuery.data.gaps.join("\n"));
-    setNotes(profileQuery.data.notes);
+    const timer = window.setTimeout(() => {
+      setStrengths(profileQuery.data?.strengths.join("\n") ?? "");
+      setGaps(profileQuery.data?.gaps.join("\n") ?? "");
+      setNotes(profileQuery.data?.notes ?? "");
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [profileQuery.data]);
 
   const saveName = useMutation({
@@ -139,7 +144,7 @@ export function SettingsPage() {
         </Card>
       </section>
       <section className="settings-section">
-        <div className="settings-heading"><Download /><div><h2>隐私与数据</h2><p>简历、JD 和回答会发送给模型供应商处理。详见<Link href="/privacy">隐私说明</Link>。</p></div></div>
+        <div className="settings-heading"><Download /><div><h2>隐私与数据</h2><p>简历、面试配置和回答会发送给模型供应商处理。详见<Link href="/privacy">隐私说明</Link>。</p></div></div>
         <Card>
           {exportMe.error ? <Alert title={normalizeError(exportMe.error).message} tone="danger" /> : null}
           <Button onClick={() => exportMe.mutate()} loading={exportMe.isPending}><Download />导出我的数据</Button>

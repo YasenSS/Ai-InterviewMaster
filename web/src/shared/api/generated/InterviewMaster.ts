@@ -40,6 +40,13 @@ export function health() {
 }
 
 /**
+ * @description "In-process AI metrics"
+ */
+export function metrics() {
+	return webapi.get<components.MetricsResponse>(`/api/v1/metrics`)
+}
+
+/**
  * @description "Dependency readiness probe"
  */
 export function ready() {
@@ -86,7 +93,7 @@ export function dashboardSummary() {
 }
 
 /**
- * @description "Create an interview from a question snapshot"
+ * @description "Prepare an interview from a resume, language and target company"
  * @param req
  */
 export function createInterview(req: components.CreateInterviewRequest) {
@@ -153,47 +160,6 @@ export function skipInterviewTurn(params: components.InterviewTurnPathParams, id
 }
 
 /**
- * @description "Create a job description"
- * @param req
- */
-export function createJobDescription(req: components.CreateJobDescriptionRequest) {
-	return webapi.post<components.JobDescriptionResponse>(`/api/v1/job-descriptions`, req)
-}
-
-/**
- * @description "List job descriptions with pagination"
- * @param params
- */
-export function listJobDescriptions(params: components.PageRequestParams) {
-	return webapi.get<components.JobDescriptionPageResponse>(`/api/v1/job-descriptions`, params)
-}
-
-/**
- * @description "Return a job description"
- * @param params
- */
-export function getJobDescription(params: components.JobDescriptionPathParams, id: string) {
-	return webapi.get<components.JobDescriptionResponse>(`/api/v1/job-descriptions/${id}`, params)
-}
-
-/**
- * @description "Update a job description and re-extract capabilities"
- * @param params
- * @param req
- */
-export function updateJobDescription(params: components.UpdateJobDescriptionRequestParams, req: components.UpdateJobDescriptionRequest, id: string) {
-	return webapi.patch<components.JobDescriptionResponse>(`/api/v1/job-descriptions/${id}`, params, req)
-}
-
-/**
- * @description "Delete a job description while preserving history"
- * @param params
- */
-export function deleteJobDescription(params: components.JobDescriptionPathParams, id: string) {
-	return webapi.delete<null>(`/api/v1/job-descriptions/${id}`, params)
-}
-
-/**
  * @description "Return the authenticated user profile"
  */
 export function me() {
@@ -209,53 +175,40 @@ export function updateMe(req: components.UpdateMeRequest) {
 }
 
 /**
- * @description "Generate a question set"
+ * @description
  * @param req
  */
-export function createQuestionSet(req: components.CreateQuestionSetRequest) {
-	return webapi.post<components.QuestionSetDetailResponse>(`/api/v1/question-sets`, req)
+export function deleteMe(req: components.DeleteAccountRequest) {
+	return webapi.post<null>(`/api/v1/me/delete`, req)
 }
 
 /**
- * @description "List question sets with pagination and filtering"
- * @param params
+ * @description
  */
-export function listQuestionSets(params: components.QuestionSetListRequestParams) {
-	return webapi.get<components.QuestionSetPageResponse>(`/api/v1/question-sets`, params)
+export function exportMe() {
+	return webapi.get<components.AccountExportResponse>(`/api/v1/me/export`)
 }
 
 /**
- * @description "Return a question set and its questions"
- * @param params
+ * @description
  */
-export function getQuestionSet(params: components.QuestionSetPathParams, id: string) {
-	return webapi.get<components.QuestionSetDetailResponse>(`/api/v1/question-sets/${id}`, params)
+export function getSkillProfile() {
+	return webapi.get<components.SkillProfileResponse>(`/api/v1/me/skill-profile`)
 }
 
 /**
- * @description "Replace question-set content transactionally"
- * @param params
+ * @description
  * @param req
  */
-export function updateQuestionSet(params: components.UpdateQuestionSetRequestParams, req: components.UpdateQuestionSetRequest, id: string) {
-	return webapi.patch<components.QuestionSetDetailResponse>(`/api/v1/question-sets/${id}`, params, req)
+export function updateSkillProfile(req: components.UpdateSkillProfileRequest) {
+	return webapi.patch<components.SkillProfileResponse>(`/api/v1/me/skill-profile`, req)
 }
 
 /**
- * @description "Delete an unused question set"
- * @param params
+ * @description
  */
-export function deleteQuestionSet(params: components.QuestionSetPathParams, id: string) {
-	return webapi.delete<null>(`/api/v1/question-sets/${id}`, params)
-}
-
-/**
- * @description "Regenerate a question set with lineage"
- * @param params
- * @param req
- */
-export function regenerateQuestionSet(params: components.RegenerateQuestionSetRequestParams, req: components.RegenerateQuestionSetRequest, id: string) {
-	return webapi.post<components.QuestionSetDetailResponse>(`/api/v1/question-sets/${id}/regenerate`, params, req)
+export function deleteSkillProfile() {
+	return webapi.delete<null>(`/api/v1/me/skill-profile`)
 }
 
 /**
@@ -313,14 +266,6 @@ export function completeResumeUpload(params: components.CompleteResumeUploadRequ
  */
 export function createResumeUpload(req: components.CreateResumeUploadRequest) {
 	return webapi.post<components.CreateResumeUploadResponse>(`/api/v1/resumes/uploads`, req)
-}
-
-/**
- * @description "List asynchronous tasks with pagination and filtering"
- * @param params
- */
-export function listTasks(params: components.TaskListRequestParams) {
-	return webapi.get<components.TaskPageResponse>(`/api/v1/tasks`, params)
 }
 
 /**

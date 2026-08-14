@@ -54,16 +54,16 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Handler: system.HealthHandler(serverCtx),
 			},
 			{
-				// Dependency readiness probe
-				Method:  http.MethodGet,
-				Path:    "/ready",
-				Handler: system.ReadyHandler(serverCtx),
-			},
-			{
 				// In-process AI metrics
 				Method:  http.MethodGet,
 				Path:    "/metrics",
 				Handler: system.MetricsHandler(serverCtx),
+			},
+			{
+				// Dependency readiness probe
+				Method:  http.MethodGet,
+				Path:    "/ready",
+				Handler: system.ReadyHandler(serverCtx),
 			},
 		},
 		rest.WithPrefix("/api/v1"),
@@ -102,7 +102,7 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Handler: workspace.DashboardSummaryHandler(serverCtx),
 			},
 			{
-				// Create an interview from a question snapshot
+				// Prepare an interview from a resume, language and target company
 				Method:  http.MethodPost,
 				Path:    "/interviews",
 				Handler: workspace.CreateInterviewHandler(serverCtx),
@@ -150,36 +150,6 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Handler: workspace.SkipInterviewTurnHandler(serverCtx),
 			},
 			{
-				// Create a job description
-				Method:  http.MethodPost,
-				Path:    "/job-descriptions",
-				Handler: workspace.CreateJobDescriptionHandler(serverCtx),
-			},
-			{
-				// List job descriptions with pagination
-				Method:  http.MethodGet,
-				Path:    "/job-descriptions",
-				Handler: workspace.ListJobDescriptionsHandler(serverCtx),
-			},
-			{
-				// Return a job description
-				Method:  http.MethodGet,
-				Path:    "/job-descriptions/:id",
-				Handler: workspace.GetJobDescriptionHandler(serverCtx),
-			},
-			{
-				// Update a job description and re-extract capabilities
-				Method:  http.MethodPatch,
-				Path:    "/job-descriptions/:id",
-				Handler: workspace.UpdateJobDescriptionHandler(serverCtx),
-			},
-			{
-				// Delete a job description while preserving history
-				Method:  http.MethodDelete,
-				Path:    "/job-descriptions/:id",
-				Handler: workspace.DeleteJobDescriptionHandler(serverCtx),
-			},
-			{
 				// Return the authenticated user profile
 				Method:  http.MethodGet,
 				Path:    "/me",
@@ -192,70 +162,29 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Handler: workspace.UpdateMeHandler(serverCtx),
 			},
 			{
-				// Export the authenticated user's data
-				Method:  http.MethodGet,
-				Path:    "/me/export",
-				Handler: workspace.ExportMeHandler(serverCtx),
-			},
-			{
-				// Delete the authenticated account after password confirmation
 				Method:  http.MethodPost,
 				Path:    "/me/delete",
 				Handler: workspace.DeleteMeHandler(serverCtx),
 			},
 			{
-				// Return the user's skill profile
+				Method:  http.MethodGet,
+				Path:    "/me/export",
+				Handler: workspace.ExportMeHandler(serverCtx),
+			},
+			{
 				Method:  http.MethodGet,
 				Path:    "/me/skill-profile",
 				Handler: workspace.GetSkillProfileHandler(serverCtx),
 			},
 			{
-				// Create or replace the user's skill profile
 				Method:  http.MethodPatch,
 				Path:    "/me/skill-profile",
 				Handler: workspace.UpdateSkillProfileHandler(serverCtx),
 			},
 			{
-				// Delete the user's skill profile
 				Method:  http.MethodDelete,
 				Path:    "/me/skill-profile",
 				Handler: workspace.DeleteSkillProfileHandler(serverCtx),
-			},
-			{
-				// Generate a question set
-				Method:  http.MethodPost,
-				Path:    "/question-sets",
-				Handler: workspace.CreateQuestionSetHandler(serverCtx),
-			},
-			{
-				// List question sets with pagination and filtering
-				Method:  http.MethodGet,
-				Path:    "/question-sets",
-				Handler: workspace.ListQuestionSetsHandler(serverCtx),
-			},
-			{
-				// Return a question set and its questions
-				Method:  http.MethodGet,
-				Path:    "/question-sets/:id",
-				Handler: workspace.GetQuestionSetHandler(serverCtx),
-			},
-			{
-				// Replace question-set content transactionally
-				Method:  http.MethodPatch,
-				Path:    "/question-sets/:id",
-				Handler: workspace.UpdateQuestionSetHandler(serverCtx),
-			},
-			{
-				// Delete an unused question set
-				Method:  http.MethodDelete,
-				Path:    "/question-sets/:id",
-				Handler: workspace.DeleteQuestionSetHandler(serverCtx),
-			},
-			{
-				// Regenerate a question set with lineage
-				Method:  http.MethodPost,
-				Path:    "/question-sets/:id/regenerate",
-				Handler: workspace.RegenerateQuestionSetHandler(serverCtx),
 			},
 			{
 				// List resumes with pagination and filtering
@@ -298,12 +227,6 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Method:  http.MethodPost,
 				Path:    "/resumes/uploads",
 				Handler: workspace.CreateResumeUploadHandler(serverCtx),
-			},
-			{
-				// List asynchronous tasks with pagination and filtering
-				Method:  http.MethodGet,
-				Path:    "/tasks",
-				Handler: workspace.ListTasksHandler(serverCtx),
 			},
 			{
 				// Return asynchronous task state

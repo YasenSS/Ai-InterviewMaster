@@ -36,6 +36,8 @@ Runtime:
     MaxInflight: 2
     DailyCallsSoft: 30
     DailyCallsHard: 50
+    PromptMicrosPer1k: 0
+    CompletionMicrosPer1k: 0
   Security:
     JWTSigningKey: development-only-replace-before-production-32chars
   Telemetry:

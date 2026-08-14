@@ -25,18 +25,14 @@ func (l *DashboardSummaryLogic) DashboardSummary() (*types.DashboardSummaryRespo
 		return nil, err
 	}
 	response := &types.DashboardSummaryResponse{
-		ScoreTrend:            []types.ScoreTrendResponse{},
-		ImprovementTopics:     []types.ImprovementTopicResponse{},
-		RecentResumes:         []types.ResumeSummaryResponse{},
-		RecentJobDescriptions: []types.JobDescriptionResponse{},
-		RecentInterviews:      []types.InterviewSummaryResponse{},
-		ActiveTasks:           []types.TaskResponse{},
+		ScoreTrend:        []types.ScoreTrendResponse{},
+		ImprovementTopics: []types.ImprovementTopicResponse{},
+		RecentResumes:     []types.ResumeSummaryResponse{},
+		RecentInterviews:  []types.InterviewSummaryResponse{},
 	}
 	err = l.svcCtx.Database.QueryRow(l.ctx, `
 		SELECT
 			(SELECT count(*) FROM resumes WHERE user_id = $1),
-			(SELECT count(*) FROM job_descriptions WHERE user_id = $1),
-			(SELECT count(*) FROM question_sets WHERE user_id = $1),
 			(SELECT count(*) FROM interview_sessions WHERE user_id = $1),
 			(
 				SELECT count(*)
@@ -46,8 +42,6 @@ func (l *DashboardSummaryLogic) DashboardSummary() (*types.DashboardSummaryRespo
 		userID,
 	).Scan(
 		&response.Counts.Resumes,
-		&response.Counts.JobDescriptions,
-		&response.Counts.QuestionSets,
 		&response.Counts.Interviews,
 		&response.Counts.CompletedInterviews,
 	)
@@ -60,7 +54,8 @@ func (l *DashboardSummaryLogic) DashboardSummary() (*types.DashboardSummaryRespo
 		FROM interview_reports AS report
 		JOIN interview_sessions AS session ON session.id = report.session_id
 		WHERE session.user_id = $1
-		  AND session.status = 'completed'`,
+		  AND session.status = 'completed'
+		  AND report.status IN ('completed', 'degraded')`,
 		userID,
 	).Scan(&averageScore)
 	if err != nil {
@@ -78,13 +73,7 @@ func (l *DashboardSummaryLogic) DashboardSummary() (*types.DashboardSummaryRespo
 	if err := l.loadRecentResumes(userID, response); err != nil {
 		return nil, err
 	}
-	if err := l.loadRecentJobs(userID, response); err != nil {
-		return nil, err
-	}
 	if err := l.loadRecentInterviews(userID, response); err != nil {
-		return nil, err
-	}
-	if err := l.loadActiveTasks(userID, response); err != nil {
 		return nil, err
 	}
 	return response, nil
@@ -102,6 +91,7 @@ func (l *DashboardSummaryLogic) loadTrend(userID string, response *types.Dashboa
 		JOIN interview_sessions AS session ON session.id = report.session_id
 		WHERE session.user_id = $1
 		  AND session.status = 'completed'
+		  AND report.status IN ('completed', 'degraded')
 		  AND session.completed_at >= now() - interval '30 days'
 		GROUP BY (session.completed_at AT TIME ZONE 'UTC')::date
 		ORDER BY (session.completed_at AT TIME ZONE 'UTC')::date ASC`,
@@ -132,6 +122,7 @@ func (l *DashboardSummaryLogic) loadImprovementTopics(
 		JOIN interview_sessions AS session ON session.id = report.session_id
 		CROSS JOIN LATERAL jsonb_array_elements_text(report.improvements) AS topic(value)
 		WHERE session.user_id = $1
+		  AND report.status IN ('completed', 'degraded')
 		  AND trim(topic.value) <> ''
 		GROUP BY lower(regexp_replace(trim(topic.value), '\s+', ' ', 'g'))
 		ORDER BY count(*) DESC, label ASC
@@ -185,38 +176,6 @@ func (l *DashboardSummaryLogic) loadRecentResumes(
 	return rows.Err()
 }
 
-func (l *DashboardSummaryLogic) loadRecentJobs(
-	userID string,
-	response *types.DashboardSummaryResponse,
-) error {
-	rows, err := l.svcCtx.Database.Query(l.ctx, `
-		SELECT id::text,
-		       COALESCE(company, ''),
-		       title,
-		       content,
-		       extracted_capabilities,
-		       created_at,
-		       updated_at
-		FROM job_descriptions
-		WHERE user_id = $1
-		ORDER BY updated_at DESC, id DESC
-		LIMIT 5`,
-		userID,
-	)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		item, err := scanJob(rows)
-		if err != nil {
-			return err
-		}
-		response.RecentJobDescriptions = append(response.RecentJobDescriptions, item)
-	}
-	return rows.Err()
-}
-
 func (l *DashboardSummaryLogic) loadRecentInterviews(
 	userID string,
 	response *types.DashboardSummaryResponse,
@@ -239,32 +198,6 @@ func (l *DashboardSummaryLogic) loadRecentInterviews(
 			return err
 		}
 		response.RecentInterviews = append(response.RecentInterviews, item)
-	}
-	return rows.Err()
-}
-
-func (l *DashboardSummaryLogic) loadActiveTasks(
-	userID string,
-	response *types.DashboardSummaryResponse,
-) error {
-	rows, err := l.svcCtx.Database.Query(l.ctx,
-		taskSelect+`
-		WHERE task.user_id = $1
-		  AND task.status IN ('pending', 'running')
-		ORDER BY task.created_at DESC, task.id DESC
-		LIMIT 5`,
-		userID,
-	)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		item, err := scanTask(rows)
-		if err != nil {
-			return err
-		}
-		response.ActiveTasks = append(response.ActiveTasks, item)
 	}
 	return rows.Err()
 }

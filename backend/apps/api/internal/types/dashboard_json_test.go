@@ -8,12 +8,10 @@ import (
 
 func TestDashboardSummaryOmitsMissingAverageScore(t *testing.T) {
 	payload, err := json.Marshal(DashboardSummaryResponse{
-		ScoreTrend:            []ScoreTrendResponse{},
-		ImprovementTopics:     []ImprovementTopicResponse{},
-		RecentResumes:         []ResumeSummaryResponse{},
-		RecentJobDescriptions: []JobDescriptionResponse{},
-		RecentInterviews:      []InterviewSummaryResponse{},
-		ActiveTasks:           []TaskResponse{},
+		ScoreTrend:        []ScoreTrendResponse{},
+		ImprovementTopics: []ImprovementTopicResponse{},
+		RecentResumes:     []ResumeSummaryResponse{},
+		RecentInterviews:  []InterviewSummaryResponse{},
 	})
 	if err != nil {
 		t.Fatalf("Marshal() error = %v", err)

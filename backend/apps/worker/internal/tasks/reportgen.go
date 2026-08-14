@@ -3,6 +3,7 @@ package tasks
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -11,6 +12,7 @@ import (
 	platformai "github.com/interviewmaster/interviewmaster/backend/internal/platform/ai"
 	"github.com/interviewmaster/interviewmaster/backend/internal/platform/ai/contract"
 	sharedtasks "github.com/interviewmaster/interviewmaster/backend/internal/tasks"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -18,23 +20,64 @@ func ReportGenerateHandler(db *pgxpool.Pool, chat platformai.ChatModel) asynq.Ha
 	return func(ctx context.Context, task *asynq.Task) error {
 		var payload sharedtasks.ReportGeneratePayload
 		if err := json.Unmarshal(task.Payload(), &payload); err != nil {
-			return fmt.Errorf("decode task: %w", err)
+			return fmt.Errorf("%w: decode task: %v", asynq.SkipRetry, err)
+		}
+		var claimedStatus string
+		err := db.QueryRow(ctx, `
+			UPDATE async_tasks AS task
+			SET status='running', progress=10, started_at=COALESCE(started_at, now()), updated_at=now()
+			WHERE task.id=$1 AND task.user_id=$2 AND task.ref_id=$3
+			  AND task.task_type='report.generate'
+			  AND (
+			    task.status='pending'
+			    OR (task.status='running' AND task.updated_at < now() - interval '10 minutes')
+			  )
+			  AND EXISTS (
+				SELECT 1 FROM interview_reports AS report
+				JOIN interview_sessions AS session ON session.id=report.session_id
+				WHERE report.id=$4 AND report.session_id=$3
+				  AND session.user_id=$2 AND session.status='completed'
+				  AND report.status IN ('pending', 'running')
+			  )
+			RETURNING task.status::text`,
+			payload.TaskID, payload.UserID, payload.SessionID, payload.ReportID,
+		).Scan(&claimedStatus)
+		if errors.Is(err, pgx.ErrNoRows) {
+			var existingStatus string
+			_ = db.QueryRow(ctx, `SELECT status::text FROM async_tasks WHERE id=$1 AND user_id=$2`, payload.TaskID, payload.UserID).Scan(&existingStatus)
+			if existingStatus == "succeeded" {
+				return nil
+			}
+			if existingStatus == "running" {
+				return fmt.Errorf("report task is already running")
+			}
+			return fmt.Errorf("%w: report task is stale or no longer runnable", asynq.SkipRetry)
+		}
+		if err != nil {
+			return err
 		}
 		_, _ = db.Exec(ctx, `
-			UPDATE async_tasks SET status='running', progress=10, started_at=COALESCE(started_at, now()), updated_at=now() WHERE id=$1`, payload.TaskID)
-		_, _ = db.Exec(ctx, `UPDATE interview_reports SET status='running', updated_at=now() WHERE id=$1`, payload.ReportID)
+			UPDATE interview_reports AS report SET status='running', updated_at=now()
+			FROM interview_sessions AS session
+			WHERE report.id=$1 AND report.session_id=$2 AND session.id=report.session_id
+			  AND session.user_id=$3 AND report.status='pending'`,
+			payload.ReportID, payload.SessionID, payload.UserID)
 
 		type turnRow struct {
 			ID, Question, Intent, Answer string
 			Expected                     []string
 		}
 		rows, err := db.Query(ctx, `
-			SELECT turn.id::text, turn.question, COALESCE(q.intent, ''), COALESCE(turn.answer, ''), COALESCE(q.expected_points, '[]'::jsonb)
+			SELECT turn.id::text,
+			       turn.question,
+			       COALESCE(q.intent, NULLIF(turn.capability_key, ''), '动态追问'),
+			       COALESCE(turn.answer, ''),
+			       COALESCE(q.expected_points, '[]'::jsonb)
 			FROM interview_turns AS turn
-			LEFT JOIN interview_sessions AS session ON session.id = turn.session_id
-			LEFT JOIN questions AS q ON q.question_set_id = session.question_set_id AND q.ordinal = turn.ordinal
-			WHERE turn.session_id=$1
-			ORDER BY turn.ordinal ASC`, payload.SessionID)
+			LEFT JOIN questions AS q ON q.id = turn.source_question_id
+			JOIN interview_sessions AS owner_session ON owner_session.id=turn.session_id
+			WHERE turn.session_id=$1 AND owner_session.user_id=$2
+			ORDER BY turn.ordinal ASC`, payload.SessionID, payload.UserID)
 		if err != nil {
 			return failReport(ctx, db, payload, "REPORT_LOAD_FAILED", "无法读取面试回答", err)
 		}
@@ -58,9 +101,8 @@ func ReportGenerateHandler(db *pgxpool.Pool, chat platformai.ChatModel) asynq.Ha
 		factRows, err := db.Query(ctx, `
 			SELECT fact.fact_type, fact.fact_key, fact.fact_value, fact.source_excerpt, fact.confidence::float8
 			FROM resume_facts AS fact
-			JOIN resumes AS resume ON resume.current_version_id = fact.resume_version_id
-			JOIN interview_sessions AS session ON session.resume_id = resume.id
-			WHERE session.id=$1`, payload.SessionID)
+			JOIN interview_sessions AS session ON session.resume_version_id = fact.resume_version_id
+			WHERE session.id=$1 AND session.user_id=$2`, payload.SessionID, payload.UserID)
 		if err == nil {
 			for factRows.Next() {
 				var fact contract.ResumeFact
@@ -150,19 +192,23 @@ func ReportGenerateHandler(db *pgxpool.Pool, chat platformai.ChatModel) asynq.Ha
 			return err
 		}
 		defer tx.Rollback(ctx)
+		failWrite := func(code, summary string, cause error) error {
+			_ = tx.Rollback(ctx)
+			return failReport(ctx, db, payload, code, summary, cause)
+		}
 		_, err = tx.Exec(ctx, `DELETE FROM interview_turn_reports WHERE report_id=$1`, payload.ReportID)
 		if err != nil {
-			return failReport(ctx, db, payload, "REPORT_WRITE_FAILED", "保存报告失败", err)
+			return failWrite("REPORT_WRITE_FAILED", "保存报告失败", err)
 		}
 		status := "completed"
 		if degraded {
 			status = "degraded"
 		}
-		_, err = tx.Exec(ctx, `
+		updateTag, err := tx.Exec(ctx, `
 			UPDATE interview_reports
 			SET overall_score=$2, strengths=$3, improvements=$4, next_steps=$5, quality_gate=$6,
 			    status=$7, degraded=$8, error_code=NULL, error_summary=NULL, updated_at=now()
-			WHERE id=$1`,
+			WHERE id=$1 AND session_id=$9`,
 			payload.ReportID,
 			overall,
 			mustJSON(draft.Strengths),
@@ -171,9 +217,13 @@ func ReportGenerateHandler(db *pgxpool.Pool, chat platformai.ChatModel) asynq.Ha
 			qualityGate,
 			status,
 			degraded,
+			payload.SessionID,
 		)
 		if err != nil {
-			return failReport(ctx, db, payload, "REPORT_WRITE_FAILED", "保存报告失败", err)
+			return failWrite("REPORT_WRITE_FAILED", "保存报告失败", err)
+		}
+		if updateTag.RowsAffected() != 1 {
+			return failWrite("REPORT_TASK_STALE", "报告任务已过期", fmt.Errorf("report update affected %d rows", updateTag.RowsAffected()))
 		}
 		for _, item := range scored {
 			if _, err := tx.Exec(ctx, `
@@ -181,12 +231,13 @@ func ReportGenerateHandler(db *pgxpool.Pool, chat platformai.ChatModel) asynq.Ha
 				VALUES ($1,$2,$3,$4,$5,$6)`,
 				payload.ReportID, item.turn.ID, item.score, item.critique, item.golden, mustJSON(item.evidence),
 			); err != nil {
-				return failReport(ctx, db, payload, "REPORT_WRITE_FAILED", "保存报告失败", err)
+				return failWrite("REPORT_WRITE_FAILED", "保存报告失败", err)
 			}
 		}
 		if _, err := tx.Exec(ctx, `
-			UPDATE async_tasks SET status='succeeded', progress=100, completed_at=now(), updated_at=now() WHERE id=$1`, payload.TaskID); err != nil {
-			return failReport(ctx, db, payload, "REPORT_WRITE_FAILED", "保存报告失败", err)
+			UPDATE async_tasks SET status='succeeded', progress=100, completed_at=now(), updated_at=now()
+			WHERE id=$1 AND user_id=$2 AND status='running'`, payload.TaskID, payload.UserID); err != nil {
+			return failWrite("REPORT_WRITE_FAILED", "保存报告失败", err)
 		}
 		if err := tx.Commit(ctx); err != nil {
 			return err
@@ -227,12 +278,15 @@ func upsertSkillProfile(ctx context.Context, db *pgxpool.Pool, userID, sessionID
 
 func failReport(ctx context.Context, db *pgxpool.Pool, payload sharedtasks.ReportGeneratePayload, code, summary string, err error) error {
 	_, _ = db.Exec(ctx, `
-		UPDATE interview_reports
+		UPDATE interview_reports AS report
 		SET status='failed', error_code=$2, error_summary=$3, updated_at=now()
-		WHERE id=$1`, payload.ReportID, code, summary)
+		FROM interview_sessions AS session
+		WHERE report.id=$1 AND report.session_id=$4
+		  AND session.id=report.session_id AND session.user_id=$5`,
+		payload.ReportID, code, summary, payload.SessionID, payload.UserID)
 	_, _ = db.Exec(ctx, `
 		UPDATE async_tasks
 		SET status='failed', error_code=$2, error_summary=$3, error_message=$4, completed_at=now(), updated_at=now()
-		WHERE id=$1`, payload.TaskID, code, summary, err.Error())
-	return err
+		WHERE id=$1 AND user_id=$5 AND status='running'`, payload.TaskID, code, summary, err.Error(), payload.UserID)
+	return fmt.Errorf("%w: %v", asynq.SkipRetry, err)
 }

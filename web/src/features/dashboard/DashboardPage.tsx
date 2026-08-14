@@ -1,56 +1,60 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, BriefcaseBusiness, ClipboardList, FileText, GraduationCap, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle2, FileText, GraduationCap, History, PlayCircle, Timer } from "lucide-react";
 import Link from "next/link";
 
-import { Alert, ErrorState } from "@/components/feedback/States";
-import { Card, Skeleton } from "@/components/ui/Display";
+import { ErrorState } from "@/components/feedback/States";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { api } from "@/shared/api/services";
-import { queryKeys } from "@/shared/api/query";
+import { Card, Skeleton } from "@/components/ui/Display";
+import { useAuth } from "@/features/auth/AuthGate";
 import { normalizeError } from "@/shared/api/client";
+import { queryKeys } from "@/shared/api/query";
+import { api } from "@/shared/api/services";
 import { formatDate } from "@/shared/lib/utils";
 import { getRecent } from "@/shared/lib/recent";
-import { useAuth } from "@/features/auth/AuthGate";
 
 export function DashboardPage() {
   const { user } = useAuth();
   const resumes = useQuery({ queryKey: queryKeys.resumes(), queryFn: api.resumes });
-  const jobs = useQuery({ queryKey: queryKeys.jobs(), queryFn: api.jobs });
-  const questionSets = useQuery({ queryKey: queryKeys.questionSets(), queryFn: api.questionSets });
   const interviews = useQuery({ queryKey: queryKeys.interviews(), queryFn: api.interviews });
   const recent = getRecent();
 
-  if (resumes.isPending || jobs.isPending) return <DashboardSkeleton />;
+  if (resumes.isPending) return <DashboardSkeleton />;
   if (resumes.error) return <ErrorState error={normalizeError(resumes.error)} retry={() => resumes.refetch()} />;
 
-  const hasMaterials = Boolean(resumes.data?.length || jobs.data?.length);
   const interviewItems = interviews.data ?? recent.interviews;
+  const completedCount = interviewItems.filter((item) => item.status === "completed").length;
+  const activeCount = interviewItems.filter((item) => item.status === "active").length;
+  const hasResume = Boolean(resumes.data?.some((item) => item.status === "completed"));
+
   return (
     <div className="page">
       <PageHeader
         eyebrow="训练工作台"
-        title={`${user?.display_name ? `${user.display_name}，` : ""}准备好继续了吗？`}
-        description="从真实材料开始，完成一轮有节奏、可复盘的面试训练。"
-        action={{ label: "开始新训练", href: resumes.data?.some((item) => item.status === "completed") ? "/question-sets/new" : "/resumes/new" }}
+        title={`${user?.display_name ? `${user.display_name}，` : ""}准备好开始了吗？`}
+        description="从真实简历出发，完成一轮会动态追问、能够完整复盘的模拟面试。"
+        action={{ label: "开始新面试", href: "/interviews/new" }}
       />
-      {!hasMaterials ? (
+
+      {!hasResume ? (
         <Card className="onboarding-card">
-          <span className="onboarding-icon"><Sparkles /></span>
-          <div><p className="eyebrow">第一次使用</p><h2>先上传一份简历</h2><p>我们会从你的真实经历中提取结构化事实，作为后续题集和面试的材料。</p></div>
-          <Link className="button button-primary button-md" href="/resumes/new">上传简历 <ArrowRight size={17} /></Link>
+          <span className="onboarding-icon"><FileText /></span>
+          <div><p className="eyebrow">开始之前</p><h2>先上传一份简历</h2><p>面试官会从你的真实经历中寻找考察线索。解析完成后，只需选择技术语言和目标公司即可开场。</p></div>
+          <Link className="button button-primary button-md" href="/resumes/new">上传简历<ArrowRight size={17} /></Link>
         </Card>
       ) : null}
-      <section className="metric-grid" aria-label="真实资源统计">
+
+      <section className="metric-grid" aria-label="训练统计">
         <Card><span className="metric-icon"><FileText /></span><p>简历</p><strong>{resumes.data?.length ?? 0}</strong><small>已保存材料</small></Card>
-        <Card><span className="metric-icon"><BriefcaseBusiness /></span><p>职位描述</p><strong>{jobs.data?.length ?? 0}</strong><small>可选训练材料</small></Card>
-        <Card><span className="metric-icon"><GraduationCap /></span><p>模拟面试</p><strong>{interviewItems.length}</strong><small>已创建场次</small></Card>
-        <Card><span className="metric-icon"><ClipboardList /></span><p>题集</p><strong>{questionSets.data?.length ?? recent.questionSets.length}</strong><small>已生成题集</small></Card>
+        <Card><span className="metric-icon"><GraduationCap /></span><p>全部面试</p><strong>{interviewItems.length}</strong><small>累计训练场次</small></Card>
+        <Card><span className="metric-icon"><CheckCircle2 /></span><p>已完成</p><strong>{completedCount}</strong><small>可完整复盘</small></Card>
+        <Card><span className="metric-icon"><Timer /></span><p>进行中</p><strong>{activeCount}</strong><small>可以继续作答</small></Card>
       </section>
+
       <div className="dashboard-grid">
         <section className="section-card">
-          <div className="section-card-head"><div><p className="eyebrow">最近材料</p><h2>继续准备</h2></div><Link href="/resumes">查看全部</Link></div>
+          <div className="section-card-head"><div><p className="eyebrow">最近简历</p><h2>训练材料</h2></div><Link href="/resumes">查看全部</Link></div>
           {(resumes.data ?? []).slice(0, 4).map((resume) => (
             <Link className="resource-row" href={`/resumes/${resume.id}`} key={resume.id}>
               <span className="resource-icon"><FileText /></span>
@@ -58,23 +62,22 @@ export function DashboardPage() {
               <span className={`status-text status-${resume.status}`}>{resume.status === "completed" ? "已解析" : resume.status === "failed" ? "失败" : "处理中"}</span>
             </Link>
           ))}
-          {!resumes.data?.length ? <p className="muted-copy">还没有简历。上传后会在这里显示。</p> : null}
+          {!resumes.data?.length ? <p className="muted-copy">还没有简历。上传并解析后即可用于模拟面试。</p> : null}
         </section>
+
         <section className="section-card">
-          <div className="section-card-head"><div><p className="eyebrow">快捷入口</p><h2>训练资源</h2></div></div>
-          <div className="quick-grid">
-            <Link href="/jobs/new"><BriefcaseBusiness /><span><strong>添加 JD</strong><small>让题目更贴近岗位</small></span></Link>
-            <Link href="/question-sets/new"><ClipboardList /><span><strong>生成题集</strong><small>组合简历与目标方向</small></span></Link>
-            <Link href="/interviews/new"><GraduationCap /><span><strong>创建面试</strong><small>从已有题集开始</small></span></Link>
-            <Link href="/tasks"><Sparkles /><span><strong>任务中心</strong><small>跟踪简历解析进度</small></span></Link>
+          <div className="section-card-head"><div><p className="eyebrow">面试入口</p><h2>下一步</h2></div></div>
+          <div className="quick-grid training-quick-grid">
+            <Link href="/interviews/new"><PlayCircle /><span><strong>开始面试</strong><small>选择语言和目标公司后直接开场</small></span></Link>
+            <Link href="/interviews/records"><History /><span><strong>面试记录</strong><small>回看完整问答、评分和改进答案</small></span></Link>
+            <Link href="/resumes/new"><FileText /><span><strong>上传新简历</strong><small>为不同经历准备新的训练材料</small></span></Link>
           </div>
         </section>
       </div>
-      <Alert title="统计摘要正在准备中">平均分、趋势和高频改进方向依赖仪表盘聚合接口；当前只展示真实可核验的资源数量。</Alert>
     </div>
   );
 }
 
 function DashboardSkeleton() {
-  return <div className="page"><Skeleton className="skeleton-title" /><div className="metric-grid">{[1,2,3,4].map((key) => <Skeleton className="skeleton-card" key={key} />)}</div></div>;
+  return <div className="page"><Skeleton className="skeleton-title" /><div className="metric-grid">{[1, 2, 3, 4].map((key) => <Skeleton className="skeleton-card" key={key} />)}</div></div>;
 }

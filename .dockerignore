@@ -1,0 +1,15 @@
+.git
+.env
+.cache
+**/.cache
+.idea
+.agents
+**/node_modules
+**/.next
+**/*.tsbuildinfo
+**/*.log
+node_modules
+web/node_modules
+web/.next
+web/.cache
+web/tsconfig.tsbuildinfo

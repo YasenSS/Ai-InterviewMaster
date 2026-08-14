@@ -84,10 +84,10 @@ func GenerateBlueprint(ctx context.Context, chat platformai.ChatModel, userID, t
 		ctx, chat, BlueprintKey, PromptV1, "interview_blueprint",
 		userID, taskID, "question_set", setID,
 		map[string]any{
-			"resume":          platformai.ClipRunes(resumeText, maxResumeRunes),
-			"job_description": platformai.ClipRunes(jobText, maxJobRunes),
-			"target_role":     strings.TrimSpace(targetRole),
-			"facts":           facts,
+			"resume":            platformai.ClipRunes(resumeText, maxResumeRunes),
+			"interview_context": platformai.ClipRunes(jobText, maxJobRunes),
+			"target_role":       strings.TrimSpace(targetRole),
+			"facts":             facts,
 		},
 		contract.ValidateBlueprint,
 	)
@@ -111,11 +111,11 @@ func GenerateQuestions(
 		ctx, chat, QuestionGenerateKey, PromptV1, "interview_question_set",
 		userID, taskID, "question_set", setID,
 		map[string]any{
-			"resume":          platformai.ClipRunes(resumeText, maxResumeRunes),
-			"job_description": platformai.ClipRunes(jobText, maxJobRunes),
-			"target_role":     strings.TrimSpace(targetRole),
-			"blueprint":       blueprint,
-			"fact_ids":        keys(factIDs),
+			"resume":            platformai.ClipRunes(resumeText, maxResumeRunes),
+			"interview_context": platformai.ClipRunes(jobText, maxJobRunes),
+			"target_role":       strings.TrimSpace(targetRole),
+			"blueprint":         blueprint,
+			"fact_ids":          keys(factIDs),
 		},
 		func(value contract.GeneratedQuestionSet) error {
 			return contract.ValidateGeneratedQuestionSet(value, factIDs)
@@ -174,9 +174,9 @@ func InputHash(parts ...string) string {
 
 func UntrustedNote(jobText string) string {
 	if strings.TrimSpace(jobText) == "" {
-		return "未提供 JD，只能依据简历和目标岗位出题"
+		return "未提供额外面试上下文，只能依据简历和固定岗位出题"
 	}
-	return "已提供 JD"
+	return "已提供语言、公司和岗位上下文"
 }
 
 func emptyEvaluation() contract.TurnEvaluation {

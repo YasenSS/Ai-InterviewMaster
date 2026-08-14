@@ -11,7 +11,7 @@
 //   - provider/openai.go  OpenAI 兼容 Provider（已建，基于 Eino）
 //   - structured.go       生成→JSON Schema→严格解码→领域校验，失败修复一次
 //   - retry.go / quota.go / audit.go / instrumented.go  重试、额度、审计包装
-//   - contract/           简历/蓝图/题集/评分/报告/追问决策的强类型输出
+//   - contract/           简历/蓝图/内部候选题/评分/报告/追问决策的强类型输出
 //   - react.go            面试官收窄 ReAct 循环（最多 2 次只读工具）
 //   - tools/              简历事实与本地面经检索，强制绑定 user_id
 //   - retriever/          自研 pgvector Retriever，私有查询强制 user_id

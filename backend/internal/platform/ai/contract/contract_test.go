@@ -32,32 +32,120 @@ func TestValidateGeneratedQuestionSetRejectsUnknownFactIDs(t *testing.T) {
 	}
 }
 
-func TestAcceptFollowUpRejectsBudgetAndUnknownAction(t *testing.T) {
-	allowed := map[string]struct{}{"project": {}, "systems": {}}
-	got := AcceptFollowUp(InterviewerDecision{
-		Action: ActionFollowUp, Question: "请补充个人贡献是什么？", CapabilityKey: "project", Reason: "need evidence",
-	}, 2, 2, false, "project", allowed)
-	if got.Action != ActionNextCapability {
-		t.Fatalf("budget not enforced: %#v", got)
+func TestValidateInterviewerDecisionActionFieldRules(t *testing.T) {
+	tests := []struct {
+		name     string
+		decision InterviewerDecision
+		wantErr  bool
+	}{
+		{
+			name:     "follow up",
+			decision: InterviewerDecision{Action: ActionFollowUp, Question: "这个指标具体是怎样统计出来的？", CapabilityKey: "project", Reason: "verify evidence"},
+		},
+		{
+			name:     "next capability",
+			decision: InterviewerDecision{Action: ActionNextCapability, CapabilityKey: "systems", Reason: "topic covered"},
+		},
+		{
+			name:     "finish",
+			decision: InterviewerDecision{Action: ActionFinish, Reason: "all goals covered"},
+		},
+		{
+			name:     "next capability missing key",
+			decision: InterviewerDecision{Action: ActionNextCapability, Reason: "move on"},
+			wantErr:  true,
+		},
+		{
+			name:     "finish contains question",
+			decision: InterviewerDecision{Action: ActionFinish, Question: "extra question", Reason: "done"},
+			wantErr:  true,
+		},
+		{
+			name:     "duplicate evidence",
+			decision: InterviewerDecision{Action: ActionNextCapability, CapabilityKey: "systems", EvidenceFactIDs: []string{"fact-1", "fact-1"}, Reason: "move on"},
+			wantErr:  true,
+		},
 	}
-	got = AcceptFollowUp(InterviewerDecision{
-		Action: ActionFollowUp, Question: "请补充个人贡献是什么？", CapabilityKey: "project", Reason: "need evidence",
-	}, 0, 3, true, "project", allowed)
-	if got.Action != ActionNextCapability {
-		t.Fatalf("nested follow-up accepted: %#v", got)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := ValidateInterviewerDecision(test.decision)
+			if (err != nil) != test.wantErr {
+				t.Fatalf("ValidateInterviewerDecision() error = %v, wantErr %v", err, test.wantErr)
+			}
+		})
 	}
-	got = AcceptFollowUp(InterviewerDecision{
-		Action: ActionFollowUp, Question: "这个结果是如何验证的？", CapabilityKey: "project", Reason: "need evidence",
-	}, 0, 3, false, "project", allowed)
-	if got.Action != ActionFollowUp {
-		t.Fatalf("valid follow-up rejected: %#v", got)
+}
+
+func TestAcceptInterviewerDecisionEnforcesBudgetAndDepth(t *testing.T) {
+	decision := InterviewerDecision{
+		Action: ActionFollowUp, Question: "这个指标具体是怎样统计出来的？", CapabilityKey: "project", Reason: "verify evidence",
+	}
+	base := InterviewerDecisionPolicy{
+		FollowUpBudget:       3,
+		MaxFollowUpDepth:     2,
+		CurrentCapability:    "project",
+		CapabilityKeys:       []string{"project", "systems"},
+		CurrentFollowUpDepth: 1,
+	}
+	if got := AcceptInterviewerDecision(decision, base); got.Action != ActionFollowUp {
+		t.Fatalf("second bounded follow-up rejected: %#v", got)
+	}
+
+	base.CurrentFollowUpDepth = 2
+	if got := AcceptInterviewerDecision(decision, base); got.Action != ActionNextCapability || got.CapabilityKey != "systems" {
+		t.Fatalf("depth not enforced: %#v", got)
+	}
+
+	base.CurrentFollowUpDepth = 0
+	base.FollowUpsUsed = 3
+	if got := AcceptInterviewerDecision(decision, base); got.Action != ActionNextCapability {
+		t.Fatalf("global budget not enforced: %#v", got)
+	}
+}
+
+func TestAcceptInterviewerDecisionValidatesCapabilityEvidenceAndFinish(t *testing.T) {
+	policy := InterviewerDecisionPolicy{
+		CompletedTurns:        2,
+		MinimumTurnsForFinish: 3,
+		CurrentCapability:     "project",
+		CapabilityKeys:        []string{"project", "systems"},
+		AllowedEvidenceFactIDs: map[string]struct{}{
+			"fact-1": {},
+		},
+	}
+	unknownFact := InterviewerDecision{
+		Action: ActionNextCapability, CapabilityKey: "systems", EvidenceFactIDs: []string{"missing"}, Reason: "move on",
+	}
+	if got := AcceptInterviewerDecision(unknownFact, policy); got.Action != ActionNextCapability || got.Reason != "unknown evidence fact id" {
+		t.Fatalf("unknown evidence not rejected: %#v", got)
+	}
+
+	unknownCapability := InterviewerDecision{Action: ActionNextCapability, CapabilityKey: "hack", Reason: "move on"}
+	if got := AcceptInterviewerDecision(unknownCapability, policy); got.CapabilityKey != "systems" {
+		t.Fatalf("unknown capability not replaced: %#v", got)
+	}
+
+	finish := InterviewerDecision{Action: ActionFinish, Reason: "coverage complete"}
+	if got := AcceptInterviewerDecision(finish, policy); got.Action != ActionNextCapability {
+		t.Fatalf("premature finish accepted: %#v", got)
+	}
+	policy.CompletedTurns = 3
+	if got := AcceptInterviewerDecision(finish, policy); got.Action != ActionFinish {
+		t.Fatalf("valid finish rejected: %#v", got)
+	}
+}
+
+func TestNextCapabilityDecisionUsesBlueprintOrder(t *testing.T) {
+	got := NextCapabilityDecision("project", []string{"project", "systems", "language"}, "fallback")
+	if got.Action != ActionNextCapability || got.CapabilityKey != "systems" || got.Question != "" {
+		t.Fatalf("unexpected fallback: %#v", got)
 	}
 }
 
 func validQuestion(ordinal int, text string) GeneratedQuestion {
 	return GeneratedQuestion{
 		Ordinal:        ordinal,
-		Question:       "请说明" + text + "的具体做法是什么？",
+		Question:       "请说明 " + text + " 的具体实现方式是什么？",
 		Intent:         "考察项目经历",
 		ExpectedPoints: []string{"背景", "结果"},
 		FollowUpHint:   "个人贡献是什么？",
