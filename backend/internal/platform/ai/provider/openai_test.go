@@ -13,7 +13,7 @@ import (
 	platformai "github.com/interviewmaster/interviewmaster/backend/internal/platform/ai"
 )
 
-func TestOpenAIGenerateUsesStructuredOutputAndReturnsUsage(t *testing.T) {
+func TestOpenAIGenerateUsesJSONSchemaAndReturnsUsage(t *testing.T) {
 	var requestBody map[string]any
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1/chat/completions" {
@@ -38,7 +38,7 @@ func TestOpenAIGenerateUsesStructuredOutputAndReturnsUsage(t *testing.T) {
 	defer server.Close()
 
 	chatModel, err := NewOpenAI(context.Background(), OpenAIConfig{
-		Provider:          "openai-compatible",
+		Provider:          "openai",
 		BaseURL:           server.URL + "/v1",
 		APIKey:            "test-key",
 		Model:             "test-model",
@@ -68,7 +68,7 @@ func TestOpenAIGenerateUsesStructuredOutputAndReturnsUsage(t *testing.T) {
 	if response.Message.Content != `{"ok":true}` {
 		t.Fatalf("content = %q", response.Message.Content)
 	}
-	if response.Usage.TotalTokens != 14 || response.Provider != "openai-compatible" || response.Model != "test-model" {
+	if response.Usage.TotalTokens != 14 || response.Provider != "openai" || response.Model != "test-model" {
 		t.Fatalf("response metadata = %#v", response)
 	}
 	format, ok := requestBody["response_format"].(map[string]any)
@@ -77,6 +77,64 @@ func TestOpenAIGenerateUsesStructuredOutputAndReturnsUsage(t *testing.T) {
 	}
 	if requestBody["max_completion_tokens"] != float64(128) {
 		t.Fatalf("max_completion_tokens = %#v", requestBody["max_completion_tokens"])
+	}
+}
+
+func TestOpenAICompatibleGenerateUsesJSONObject(t *testing.T) {
+	var requestBody map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+			t.Errorf("decode request: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"id":"chatcmpl-compatible",
+			"object":"chat.completion",
+			"created":1,
+			"model":"compatible-model",
+			"choices":[{"index":0,"message":{"role":"assistant","content":"{\"ok\":true}"},"finish_reason":"stop"}]
+		}`))
+	}))
+	defer server.Close()
+
+	chatModel, err := NewOpenAI(context.Background(), OpenAIConfig{
+		Provider:          "openai-compatible",
+		BaseURL:           server.URL + "/v1",
+		APIKey:            "test-key",
+		Model:             "compatible-model",
+		Timeout:           2 * time.Second,
+		MaxOutputTokens:   128,
+		StructuredOutputs: true,
+	})
+	if err != nil {
+		t.Fatalf("NewOpenAI() error = %v", err)
+	}
+	_, err = chatModel.Generate(context.Background(), platformai.GenerateRequest{
+		Messages:   []platformai.Message{{Role: platformai.RoleUser, Content: "return JSON"}},
+		SchemaName: "test_output",
+		JSONSchema: []byte(`{"type":"object","properties":{"ok":{"type":"boolean"}},"required":["ok"]}`),
+	})
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	format, ok := requestBody["response_format"].(map[string]any)
+	if !ok || format["type"] != "json_object" {
+		t.Fatalf("response_format = %#v", requestBody["response_format"])
+	}
+	if _, exists := format["json_schema"]; exists {
+		t.Fatalf("compatible response_format must not contain json_schema: %#v", format)
+	}
+}
+
+func TestDeepSeekCompatibilityMode(t *testing.T) {
+	if !isDeepSeekBaseURL("https://api.deepseek.com") || !isDeepSeekBaseURL("https://api.deepseek.com/v1") {
+		t.Fatal("DeepSeek API base URL was not detected")
+	}
+	if isDeepSeekBaseURL("https://api.openai.com/v1") {
+		t.Fatal("OpenAI URL must not be detected as DeepSeek")
+	}
+	if isDeepSeekBaseURL("https://api.deepseek.com.example.invalid") {
+		t.Fatal("lookalike hostname must not be detected as DeepSeek")
 	}
 }
 
@@ -111,25 +169,40 @@ func TestOpenAIGenerateUsesDeepSeek(t *testing.T) {
 	if apiKey == "" {
 		t.Skip("DEEPSEEK_API_KEY is not set")
 	}
+	baseURL := os.Getenv("DEEPSEEK_BASE_URL")
+	if baseURL == "" {
+		baseURL = "https://api.deepseek.com"
+	}
+	modelName := os.Getenv("DEEPSEEK_MODEL")
+	if modelName == "" {
+		modelName = "deepseek-v4-pro"
+	}
 	chatModel, err := NewOpenAI(context.Background(), OpenAIConfig{
+		Provider:          "openai-compatible",
 		APIKey:            apiKey,
-		BaseURL:           "https://api.deepseek.com/v1",
-		Model:             "deepseek-v4-pro",
-		Timeout:           20 * time.Second,
-		MaxOutputTokens:   100,
+		BaseURL:           baseURL,
+		Model:             modelName,
+		Timeout:           60 * time.Second,
+		MaxOutputTokens:   512,
 		StructuredOutputs: true,
 	})
 	if err != nil {
 		t.Fatalf("NewOpenAI() error = %v", err)
 	}
 	response, err := chatModel.Generate(context.Background(), platformai.GenerateRequest{
-		Messages: []platformai.Message{{Role: platformai.RoleUser, Content: "hello"}},
+		Messages: []platformai.Message{
+			{Role: platformai.RoleSystem, Content: "Return JSON only."},
+			{Role: platformai.RoleUser, Content: `Return {"ok":true}.`},
+		},
+		SchemaName: "deepseek_connectivity",
+		JSONSchema: []byte(`{"type":"object","properties":{"ok":{"type":"boolean"}},"required":["ok"],"additionalProperties":false}`),
+		MaxTokens:  256,
 	})
 	if err != nil {
 		t.Fatalf("Generate() error = %v", err)
 	}
-	t.Logf("model=%s content=%s tokens=%d", response.Model, response.Message.Content, response.Usage.TotalTokens)
-	if strings.TrimSpace(response.Message.Content) == "" {
+	t.Logf("model=%s tokens=%d", response.Model, response.Usage.TotalTokens)
+	if strings.TrimSpace(response.Message.Content) == "" || !strings.Contains(response.Message.Content, `"ok"`) {
 		t.Fatal("empty model reply")
 	}
 }

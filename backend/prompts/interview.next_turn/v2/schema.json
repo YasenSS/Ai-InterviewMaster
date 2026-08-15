@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "action": { "enum": ["deepen", "switch_capability", "recommend_finish"] },
+    "question": { "type": "string", "maxLength": 500 },
+    "turn_kind": { "enum": ["", "main", "follow_up"] },
+    "capability_key": { "type": "string", "maxLength": 100 },
+    "intent": { "type": "string", "maxLength": 300 },
+    "expected_points": {
+      "type": "array",
+      "maxItems": 6,
+      "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+    },
+    "difficulty": { "enum": ["", "easy", "medium", "hard"] },
+    "evidence_fact_ids": {
+      "type": "array",
+      "maxItems": 12,
+      "items": { "type": "string", "minLength": 1, "maxLength": 100 }
+    },
+    "reason": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "coverage_observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "evidence_quality": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "resolved": {
+          "type": "array",
+          "maxItems": 6,
+          "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+        },
+        "unresolved": {
+          "type": "array",
+          "maxItems": 6,
+          "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+        }
+      },
+      "required": ["evidence_quality", "resolved", "unresolved"]
+    }
+  },
+  "required": [
+    "action",
+    "question",
+    "turn_kind",
+    "capability_key",
+    "intent",
+    "expected_points",
+    "difficulty",
+    "evidence_fact_ids",
+    "reason",
+    "coverage_observation"
+  ],
+  "allOf": [
+    {
+      "if": { "properties": { "action": { "const": "recommend_finish" } } },
+      "then": {
+        "properties": {
+          "question": { "const": "" },
+          "turn_kind": { "const": "" },
+          "capability_key": { "const": "" },
+          "intent": { "const": "" },
+          "expected_points": { "maxItems": 0 },
+          "difficulty": { "const": "" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "action": { "enum": ["deepen", "switch_capability"] } } },
+      "then": {
+        "properties": {
+          "question": { "minLength": 2 },
+          "capability_key": { "minLength": 1 },
+          "intent": { "minLength": 1 },
+          "expected_points": { "minItems": 2 },
+          "difficulty": { "enum": ["easy", "medium", "hard"] }
+        }
+      }
+    }
+  ]
+}

@@ -27,11 +27,7 @@ export function InterviewRecordPage({ id }: { id: string }) {
     },
   });
   const retryReport = useMutation({
-    mutationFn: async () => {
-      const taskId = report.data?.task_id;
-      if (!taskId) throw { code: "TASK_NOT_FOUND", message: "没有可重试的评估任务。" };
-      return api.retryTask(taskId);
-    },
+	mutationFn: () => api.retryInterviewReport(id),
     onSuccess: () => report.refetch(),
   });
 
@@ -75,6 +71,7 @@ export function InterviewRecordPage({ id }: { id: string }) {
         <div><Clock3 /><span><small>面试时间</small><strong>{formatDate(session.started_at ?? session.created_at)}</strong></span></div>
         <div><TrendingUp /><span><small>完整过程</small><strong>{visibleTurns.filter((turn) => Boolean(turn.answer)).length} 轮回答 · {formatTimer(session.duration_seconds)}</strong></span></div>
         <Badge tone={completed ? "success" : "warning"}>{completed ? "已完成" : "进行中"}</Badge>
+		<Badge tone={session.agent_mode === "ai" ? "success" : "warning"}>{session.agent_mode === "ai" ? "实时 AI 面试" : session.agent_mode === "rule" ? "规则降级面试" : "旧版面试"}</Badge>
       </Card>
 
       {!completed ? (
@@ -91,7 +88,7 @@ export function InterviewRecordPage({ id }: { id: string }) {
       ) : null}
       {evaluationFailed ? (
         <Alert title={evaluation?.error_summary || "评估生成失败"} tone="danger">
-          完整问答没有丢失。{evaluation?.task_id ? <Button variant="secondary" onClick={() => retryReport.mutate()} loading={retryReport.isPending}>重试评估</Button> : null}
+		  完整问答没有丢失。{evaluation?.operation?.retryable ? <Button variant="secondary" onClick={() => retryReport.mutate()} loading={retryReport.isPending}>重试评估</Button> : null}
         </Alert>
       ) : null}
       {retryReport.error ? <Alert title={normalizeError(retryReport.error).message} tone="danger" /> : null}

@@ -120,22 +120,40 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Handler: workspace.GetInterviewHandler(serverCtx),
 			},
 			{
-				// Deprecated: use PUT /interviews/:id/turns/:ordinal/answer
-				Method:  http.MethodPost,
-				Path:    "/interviews/:id/answer",
-				Handler: workspace.AnswerInterviewHandler(serverCtx),
-			},
-			{
 				// Complete and lock an interview
 				Method:  http.MethodPost,
 				Path:    "/interviews/:id/complete",
 				Handler: workspace.CompleteInterviewHandler(serverCtx),
 			},
 			{
+				// Continue a failed decision with an explicitly marked fallback question
+				Method:  http.MethodPost,
+				Path:    "/interviews/:id/next-turn/fallback",
+				Handler: workspace.FallbackInterviewDecisionHandler(serverCtx),
+			},
+			{
+				// Retry the failed decision for the current answered turn
+				Method:  http.MethodPost,
+				Path:    "/interviews/:id/next-turn/retry",
+				Handler: workspace.RetryInterviewDecisionHandler(serverCtx),
+			},
+			{
+				// Retry a failed interview preparation without exposing an internal task
+				Method:  http.MethodPost,
+				Path:    "/interviews/:id/preparation/retry",
+				Handler: workspace.RetryInterviewPreparationHandler(serverCtx),
+			},
+			{
 				// Return or generate the unique interview report
 				Method:  http.MethodGet,
 				Path:    "/interviews/:id/report",
 				Handler: workspace.GetInterviewReportHandler(serverCtx),
+			},
+			{
+				// Retry a failed report evaluation without exposing an internal task
+				Method:  http.MethodPost,
+				Path:    "/interviews/:id/report/retry",
+				Handler: workspace.RetryInterviewReportHandler(serverCtx),
 			},
 			{
 				// Save or overwrite a specific interview answer
@@ -227,18 +245,6 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Method:  http.MethodPost,
 				Path:    "/resumes/uploads",
 				Handler: workspace.CreateResumeUploadHandler(serverCtx),
-			},
-			{
-				// Return asynchronous task state
-				Method:  http.MethodGet,
-				Path:    "/tasks/:id",
-				Handler: workspace.GetTaskHandler(serverCtx),
-			},
-			{
-				// Retry a supported failed task
-				Method:  http.MethodPost,
-				Path:    "/tasks/:id/retry",
-				Handler: workspace.RetryTaskHandler(serverCtx),
 			},
 		},
 		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),

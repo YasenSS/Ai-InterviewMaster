@@ -23,17 +23,16 @@ export function ResumeUploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const [progress, setProgress] = useState(0);
-  const [taskId, setTaskId] = useState("");
   const [resumeId, setResumeId] = useState("");
   const [fileError, setFileError] = useState("");
-  const task = useQuery({
-    queryKey: queryKeys.task(taskId),
-    queryFn: () => api.task(taskId),
-    enabled: Boolean(taskId),
-    refetchInterval: (query) => {
-      if (document.visibilityState !== "visible") return false;
-      return ["succeeded", "failed"].includes(query.state.data?.status ?? "") ? false : cacheTimes.taskPoll;
-    },
+	const resume = useQuery({
+	queryKey: queryKeys.resume(resumeId),
+	queryFn: () => api.resume(resumeId),
+	enabled: Boolean(resumeId),
+	refetchInterval: (query) => {
+	  if (document.visibilityState !== "visible") return false;
+	  return ["completed", "failed"].includes(query.state.data?.status ?? "") ? false : cacheTimes.taskPoll;
+	},
   });
   const upload = useMutation({
     mutationFn: async () => {
@@ -46,18 +45,17 @@ export function ResumeUploadPage() {
       });
       setResumeId(ticket.resume_id);
       await uploadFile(ticket.upload_url, file, ticket.upload_headers, setProgress);
-      const result = await api.completeResumeUpload(ticket.resume_id, ticket.version_id);
-      setTaskId(result.task_id);
+	  await api.completeResumeUpload(ticket.resume_id, ticket.version_id);
       return ticket;
     },
   });
 
   useEffect(() => {
-    if (task.data?.status === "succeeded" && resumeId) {
+	if (resume.data?.status === "completed" && resumeId) {
       void queryClient.invalidateQueries({ queryKey: ["resumes"] });
       router.replace(`/resumes/${resumeId}`);
     }
-  }, [queryClient, resumeId, router, task.data?.status]);
+  }, [queryClient, resumeId, router, resume.data?.status]);
 
   useEffect(() => {
     const protect = (event: BeforeUnloadEvent) => {
@@ -77,15 +75,15 @@ export function ResumeUploadPage() {
     setFile(next);
     if (!title) setTitle(next.name.replace(/\.[^.]+$/, ""));
   };
-  const error = upload.error ? normalizeError(upload.error) : task.error ? normalizeError(task.error) : null;
-  const stage = taskId ? "parsing" : upload.isPending ? (progress < 100 ? "uploading" : "starting") : "select";
+  const error = upload.error ? normalizeError(upload.error) : resume.error ? normalizeError(resume.error) : null;
+	const stage = resumeId ? "parsing" : upload.isPending ? (progress < 100 ? "uploading" : "starting") : "select";
 
   return (
     <div className="page narrow-page">
       <PageHeader eyebrow="简历 · 新建" title="上传并解析简历" description="文件将直接上传到对象存储，解析完成后可核对结构化事实。" />
       <Card className="upload-card">
         <ol className="stepper" aria-label="上传步骤"><li className={stage !== "select" ? "done" : "active"}><span>1</span>选择文件</li><li className={stage === "uploading" || stage === "starting" ? "active" : stage === "parsing" ? "done" : ""}><span>2</span>安全上传</li><li className={stage === "parsing" ? "active" : ""}><span>3</span>解析内容</li></ol>
-        {!taskId ? (
+		{!resumeId ? (
           <form className="form-stack" onSubmit={(event) => { event.preventDefault(); upload.mutate(); }}>
             <label className="file-drop">
               <FileUp size={30} /><strong>{file ? file.name : "选择 PDF、DOCX 或 TXT 简历"}</strong><span>{file ? `${(file.size / 1024 / 1024).toFixed(2)} MiB` : "文件大小不超过 20 MiB"}</span>
@@ -99,11 +97,11 @@ export function ResumeUploadPage() {
           </form>
         ) : (
           <div className="processing-state">
-            {task.data?.status === "succeeded" ? <CheckCircle2 /> : <span className="processing-orb" />}
-            <h2>{task.data?.status === "failed" ? "解析未成功" : task.data?.status === "succeeded" ? "解析完成" : "正在理解简历内容"}</h2>
-            <p>{task.data?.status === "failed" ? "解析未成功，请重新上传文件后再试。" : "你可以离开此页面，解析会在后台继续；稍后从简历列表查看结果。"}</p>
-            <Progress value={task.data?.progress ?? 0} label="解析进度" />
-            {error || task.data?.status === "failed" ? <Alert title={error?.message ?? "解析失败，请稍后重试。"} tone="danger">{error?.requestId ? `请求 ID：${error.requestId}` : null}</Alert> : null}
+			{resume.data?.status === "completed" ? <CheckCircle2 /> : <span className="processing-orb" />}
+			<h2>{resume.data?.status === "failed" ? "解析未成功" : resume.data?.status === "completed" ? "解析完成" : "正在理解简历内容"}</h2>
+			<p>{resume.data?.status === "failed" ? "解析未成功，请重新上传文件后再试。" : "你可以离开此页面，解析会在后台继续；稍后从简历列表查看结果。"}</p>
+			<Progress value={resume.data?.status === "completed" ? 100 : resume.data?.status === "failed" ? 100 : 60} label="解析进度" />
+			{error || resume.data?.status === "failed" ? <Alert title={error?.message ?? resume.data?.parse_error ?? "解析失败，请稍后重试。"} tone="danger">{error?.requestId ? `请求 ID：${error.requestId}` : null}</Alert> : null}
           </div>
         )}
       </Card>

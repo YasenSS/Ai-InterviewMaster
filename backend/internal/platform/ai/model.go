@@ -78,10 +78,11 @@ type GenerateRequest struct {
 
 // GenerateResponse 是一次模型调用的输出。
 type GenerateResponse struct {
-	Message  Message
-	Usage    Usage
-	Provider string
-	Model    string
+	Message      Message
+	Usage        Usage
+	Provider     string
+	Model        string
+	InvocationID string
 }
 
 // Usage 记录 token 消耗，用于成本治理与审计。

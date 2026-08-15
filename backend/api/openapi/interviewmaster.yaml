@@ -593,13 +593,17 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           description: ""
           schema:
             properties:
+              agent_mode:
+                type: string
               answered_count:
                 type: integer
               completed_at:
+                type: string
+              completion_reason:
                 type: string
               created_at:
                 type: string
@@ -609,8 +613,29 @@ paths:
                 type: integer
               id:
                 type: string
+              operation:
+                properties:
+                  error_code:
+                    type: string
+                  error_summary:
+                    type: string
+                  retryable:
+                    type: boolean
+                  status:
+                    type: string
+                  type:
+                    type: string
+                required:
+                - type
+                - status
+                - retryable
+                type: object
               overall_score:
                 type: integer
+              phase:
+                type: string
+              policy_version:
+                type: string
               primary_language:
                 type: string
               question_count:
@@ -637,8 +662,6 @@ paths:
                 type: string
               target_role:
                 type: string
-              task_id:
-                type: string
               title:
                 type: string
               turns:
@@ -649,6 +672,12 @@ paths:
                     answered_at:
                       type: string
                     capability_key:
+                      type: string
+                    difficulty:
+                      type: string
+                    generation_mode:
+                      type: string
+                    intent:
                       type: string
                     ordinal:
                       type: integer
@@ -694,9 +723,13 @@ paths:
           description: ""
           schema:
             properties:
+              agent_mode:
+                type: string
               answered_count:
                 type: integer
               completed_at:
+                type: string
+              completion_reason:
                 type: string
               created_at:
                 type: string
@@ -706,8 +739,29 @@ paths:
                 type: integer
               id:
                 type: string
+              operation:
+                properties:
+                  error_code:
+                    type: string
+                  error_summary:
+                    type: string
+                  retryable:
+                    type: boolean
+                  status:
+                    type: string
+                  type:
+                    type: string
+                required:
+                - type
+                - status
+                - retryable
+                type: object
               overall_score:
                 type: integer
+              phase:
+                type: string
+              policy_version:
+                type: string
               primary_language:
                 type: string
               question_count:
@@ -734,8 +788,6 @@ paths:
                 type: string
               target_role:
                 type: string
-              task_id:
-                type: string
               title:
                 type: string
               turns:
@@ -746,6 +798,12 @@ paths:
                     answered_at:
                       type: string
                     capability_key:
+                      type: string
+                    difficulty:
+                      type: string
+                    generation_mode:
+                      type: string
+                    intent:
                       type: string
                     ordinal:
                       type: integer
@@ -776,115 +834,6 @@ paths:
       schemes:
       - https
       summary: Return an interview with server timing state
-  /api/v1/interviews/{id}/answer:
-    post:
-      consumes:
-      - application/json
-      operationId: workspaceAnswerInterview
-      parameters:
-      - in: path
-        name: id
-        required: true
-        type: string
-      - in: body
-        name: body
-        required: true
-        schema:
-          properties:
-            answer:
-              type: string
-          required:
-          - answer
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: ""
-          schema:
-            properties:
-              answered_count:
-                type: integer
-              completed_at:
-                type: string
-              created_at:
-                type: string
-              current_ordinal:
-                type: integer
-              duration_seconds:
-                type: integer
-              id:
-                type: string
-              overall_score:
-                type: integer
-              primary_language:
-                type: string
-              question_count:
-                type: integer
-              question_duration_seconds:
-                type: integer
-              resume:
-                properties:
-                  id:
-                    type: string
-                  title:
-                    type: string
-                required:
-                - id
-                - title
-                type: object
-              skipped_count:
-                type: integer
-              started_at:
-                type: string
-              status:
-                type: string
-              target_company:
-                type: string
-              target_role:
-                type: string
-              task_id:
-                type: string
-              title:
-                type: string
-              turns:
-                items:
-                  properties:
-                    answer:
-                      type: string
-                    answered_at:
-                      type: string
-                    capability_key:
-                      type: string
-                    ordinal:
-                      type: integer
-                    parent_turn_id:
-                      type: string
-                    question:
-                      type: string
-                    skipped_at:
-                      type: string
-                    started_at:
-                      type: string
-                    state:
-                      type: string
-                    time_spent_seconds:
-                      type: integer
-                    turn_kind:
-                      type: string
-                  required:
-                  - ordinal
-                  - question
-                  - state
-                  - time_spent_seconds
-                  type: object
-                type: array
-              updated_at:
-                type: string
-            type: object
-      schemes:
-      - https
-      summary: 'Deprecated: use PUT /interviews/:id/turns/:ordinal/answer'
   /api/v1/interviews/{id}/complete:
     post:
       consumes:
@@ -912,9 +861,13 @@ paths:
           description: ""
           schema:
             properties:
+              agent_mode:
+                type: string
               answered_count:
                 type: integer
               completed_at:
+                type: string
+              completion_reason:
                 type: string
               created_at:
                 type: string
@@ -924,8 +877,29 @@ paths:
                 type: integer
               id:
                 type: string
+              operation:
+                properties:
+                  error_code:
+                    type: string
+                  error_summary:
+                    type: string
+                  retryable:
+                    type: boolean
+                  status:
+                    type: string
+                  type:
+                    type: string
+                required:
+                - type
+                - status
+                - retryable
+                type: object
               overall_score:
                 type: integer
+              phase:
+                type: string
+              policy_version:
+                type: string
               primary_language:
                 type: string
               question_count:
@@ -952,8 +926,6 @@ paths:
                 type: string
               target_role:
                 type: string
-              task_id:
-                type: string
               title:
                 type: string
               turns:
@@ -964,6 +936,12 @@ paths:
                     answered_at:
                       type: string
                     capability_key:
+                      type: string
+                    difficulty:
+                      type: string
+                    generation_mode:
+                      type: string
+                    intent:
                       type: string
                     ordinal:
                       type: integer
@@ -994,6 +972,390 @@ paths:
       schemes:
       - https
       summary: Complete and lock an interview
+  /api/v1/interviews/{id}/next-turn/fallback:
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      operationId: workspaceFallbackInterviewDecision
+      parameters:
+      - in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: ""
+          schema:
+            properties:
+              agent_mode:
+                type: string
+              answered_count:
+                type: integer
+              completed_at:
+                type: string
+              completion_reason:
+                type: string
+              created_at:
+                type: string
+              current_ordinal:
+                type: integer
+              duration_seconds:
+                type: integer
+              id:
+                type: string
+              operation:
+                properties:
+                  error_code:
+                    type: string
+                  error_summary:
+                    type: string
+                  retryable:
+                    type: boolean
+                  status:
+                    type: string
+                  type:
+                    type: string
+                required:
+                - type
+                - status
+                - retryable
+                type: object
+              overall_score:
+                type: integer
+              phase:
+                type: string
+              policy_version:
+                type: string
+              primary_language:
+                type: string
+              question_count:
+                type: integer
+              question_duration_seconds:
+                type: integer
+              resume:
+                properties:
+                  id:
+                    type: string
+                  title:
+                    type: string
+                required:
+                - id
+                - title
+                type: object
+              skipped_count:
+                type: integer
+              started_at:
+                type: string
+              status:
+                type: string
+              target_company:
+                type: string
+              target_role:
+                type: string
+              title:
+                type: string
+              turns:
+                items:
+                  properties:
+                    answer:
+                      type: string
+                    answered_at:
+                      type: string
+                    capability_key:
+                      type: string
+                    difficulty:
+                      type: string
+                    generation_mode:
+                      type: string
+                    intent:
+                      type: string
+                    ordinal:
+                      type: integer
+                    parent_turn_id:
+                      type: string
+                    question:
+                      type: string
+                    skipped_at:
+                      type: string
+                    started_at:
+                      type: string
+                    state:
+                      type: string
+                    time_spent_seconds:
+                      type: integer
+                    turn_kind:
+                      type: string
+                  required:
+                  - ordinal
+                  - question
+                  - state
+                  - time_spent_seconds
+                  type: object
+                type: array
+              updated_at:
+                type: string
+            type: object
+      schemes:
+      - https
+      summary: Continue a failed decision with an explicitly marked fallback question
+  /api/v1/interviews/{id}/next-turn/retry:
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      operationId: workspaceRetryInterviewDecision
+      parameters:
+      - in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: ""
+          schema:
+            properties:
+              agent_mode:
+                type: string
+              answered_count:
+                type: integer
+              completed_at:
+                type: string
+              completion_reason:
+                type: string
+              created_at:
+                type: string
+              current_ordinal:
+                type: integer
+              duration_seconds:
+                type: integer
+              id:
+                type: string
+              operation:
+                properties:
+                  error_code:
+                    type: string
+                  error_summary:
+                    type: string
+                  retryable:
+                    type: boolean
+                  status:
+                    type: string
+                  type:
+                    type: string
+                required:
+                - type
+                - status
+                - retryable
+                type: object
+              overall_score:
+                type: integer
+              phase:
+                type: string
+              policy_version:
+                type: string
+              primary_language:
+                type: string
+              question_count:
+                type: integer
+              question_duration_seconds:
+                type: integer
+              resume:
+                properties:
+                  id:
+                    type: string
+                  title:
+                    type: string
+                required:
+                - id
+                - title
+                type: object
+              skipped_count:
+                type: integer
+              started_at:
+                type: string
+              status:
+                type: string
+              target_company:
+                type: string
+              target_role:
+                type: string
+              title:
+                type: string
+              turns:
+                items:
+                  properties:
+                    answer:
+                      type: string
+                    answered_at:
+                      type: string
+                    capability_key:
+                      type: string
+                    difficulty:
+                      type: string
+                    generation_mode:
+                      type: string
+                    intent:
+                      type: string
+                    ordinal:
+                      type: integer
+                    parent_turn_id:
+                      type: string
+                    question:
+                      type: string
+                    skipped_at:
+                      type: string
+                    started_at:
+                      type: string
+                    state:
+                      type: string
+                    time_spent_seconds:
+                      type: integer
+                    turn_kind:
+                      type: string
+                  required:
+                  - ordinal
+                  - question
+                  - state
+                  - time_spent_seconds
+                  type: object
+                type: array
+              updated_at:
+                type: string
+            type: object
+      schemes:
+      - https
+      summary: Retry the failed decision for the current answered turn
+  /api/v1/interviews/{id}/preparation/retry:
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      operationId: workspaceRetryInterviewPreparation
+      parameters:
+      - in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: ""
+          schema:
+            properties:
+              agent_mode:
+                type: string
+              answered_count:
+                type: integer
+              completed_at:
+                type: string
+              completion_reason:
+                type: string
+              created_at:
+                type: string
+              current_ordinal:
+                type: integer
+              duration_seconds:
+                type: integer
+              id:
+                type: string
+              operation:
+                properties:
+                  error_code:
+                    type: string
+                  error_summary:
+                    type: string
+                  retryable:
+                    type: boolean
+                  status:
+                    type: string
+                  type:
+                    type: string
+                required:
+                - type
+                - status
+                - retryable
+                type: object
+              overall_score:
+                type: integer
+              phase:
+                type: string
+              policy_version:
+                type: string
+              primary_language:
+                type: string
+              question_count:
+                type: integer
+              question_duration_seconds:
+                type: integer
+              resume:
+                properties:
+                  id:
+                    type: string
+                  title:
+                    type: string
+                required:
+                - id
+                - title
+                type: object
+              skipped_count:
+                type: integer
+              started_at:
+                type: string
+              status:
+                type: string
+              target_company:
+                type: string
+              target_role:
+                type: string
+              title:
+                type: string
+              turns:
+                items:
+                  properties:
+                    answer:
+                      type: string
+                    answered_at:
+                      type: string
+                    capability_key:
+                      type: string
+                    difficulty:
+                      type: string
+                    generation_mode:
+                      type: string
+                    intent:
+                      type: string
+                    ordinal:
+                      type: integer
+                    parent_turn_id:
+                      type: string
+                    question:
+                      type: string
+                    skipped_at:
+                      type: string
+                    started_at:
+                      type: string
+                    state:
+                      type: string
+                    time_spent_seconds:
+                      type: integer
+                    turn_kind:
+                      type: string
+                  required:
+                  - ordinal
+                  - question
+                  - state
+                  - time_spent_seconds
+                  type: object
+                type: array
+              updated_at:
+                type: string
+            type: object
+      schemes:
+      - https
+      summary: Retry a failed interview preparation without exposing an internal task
   /api/v1/interviews/{id}/report:
     get:
       operationId: workspaceGetInterviewReport
@@ -1027,6 +1389,23 @@ paths:
                 items:
                   type: string
                 type: array
+              operation:
+                properties:
+                  error_code:
+                    type: string
+                  error_summary:
+                    type: string
+                  retryable:
+                    type: boolean
+                  status:
+                    type: string
+                  type:
+                    type: string
+                required:
+                - type
+                - status
+                - retryable
+                type: object
               overall_score:
                 type: integer
               quality_passed:
@@ -1039,8 +1418,6 @@ paths:
                 items:
                   type: string
                 type: array
-              task_id:
-                type: string
               turns:
                 items:
                   properties:
@@ -1075,6 +1452,104 @@ paths:
       schemes:
       - https
       summary: Return or generate the unique interview report
+  /api/v1/interviews/{id}/report/retry:
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      operationId: workspaceRetryInterviewReport
+      parameters:
+      - in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: ""
+          schema:
+            properties:
+              created_at:
+                type: string
+              degraded:
+                type: boolean
+              error_code:
+                type: string
+              error_summary:
+                type: string
+              id:
+                type: string
+              improvements:
+                items:
+                  type: string
+                type: array
+              next_steps:
+                items:
+                  type: string
+                type: array
+              operation:
+                properties:
+                  error_code:
+                    type: string
+                  error_summary:
+                    type: string
+                  retryable:
+                    type: boolean
+                  status:
+                    type: string
+                  type:
+                    type: string
+                required:
+                - type
+                - status
+                - retryable
+                type: object
+              overall_score:
+                type: integer
+              quality_passed:
+                type: boolean
+              session_id:
+                type: string
+              status:
+                type: string
+              strengths:
+                items:
+                  type: string
+                type: array
+              turns:
+                items:
+                  properties:
+                    answer:
+                      type: string
+                    critique:
+                      type: string
+                    evidence:
+                      items:
+                        type: string
+                      type: array
+                    golden_answer:
+                      type: string
+                    ordinal:
+                      type: integer
+                    question:
+                      type: string
+                    score:
+                      type: integer
+                  required:
+                  - ordinal
+                  - question
+                  - score
+                  - critique
+                  - golden_answer
+                  - evidence
+                  type: object
+                type: array
+              updated_at:
+                type: string
+            type: object
+      schemes:
+      - https
+      summary: Retry a failed report evaluation without exposing an internal task
   /api/v1/interviews/{id}/turns/{ordinal}/answer:
     put:
       consumes:
@@ -1102,13 +1577,17 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           description: ""
           schema:
             properties:
+              agent_mode:
+                type: string
               answered_count:
                 type: integer
               completed_at:
+                type: string
+              completion_reason:
                 type: string
               created_at:
                 type: string
@@ -1118,8 +1597,29 @@ paths:
                 type: integer
               id:
                 type: string
+              operation:
+                properties:
+                  error_code:
+                    type: string
+                  error_summary:
+                    type: string
+                  retryable:
+                    type: boolean
+                  status:
+                    type: string
+                  type:
+                    type: string
+                required:
+                - type
+                - status
+                - retryable
+                type: object
               overall_score:
                 type: integer
+              phase:
+                type: string
+              policy_version:
+                type: string
               primary_language:
                 type: string
               question_count:
@@ -1146,8 +1646,6 @@ paths:
                 type: string
               target_role:
                 type: string
-              task_id:
-                type: string
               title:
                 type: string
               turns:
@@ -1158,6 +1656,12 @@ paths:
                     answered_at:
                       type: string
                     capability_key:
+                      type: string
+                    difficulty:
+                      type: string
+                    generation_mode:
+                      type: string
+                    intent:
                       type: string
                     ordinal:
                       type: integer
@@ -1205,13 +1709,17 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           description: ""
           schema:
             properties:
+              agent_mode:
+                type: string
               answered_count:
                 type: integer
               completed_at:
+                type: string
+              completion_reason:
                 type: string
               created_at:
                 type: string
@@ -1221,8 +1729,29 @@ paths:
                 type: integer
               id:
                 type: string
+              operation:
+                properties:
+                  error_code:
+                    type: string
+                  error_summary:
+                    type: string
+                  retryable:
+                    type: boolean
+                  status:
+                    type: string
+                  type:
+                    type: string
+                required:
+                - type
+                - status
+                - retryable
+                type: object
               overall_score:
                 type: integer
+              phase:
+                type: string
+              policy_version:
+                type: string
               primary_language:
                 type: string
               question_count:
@@ -1249,8 +1778,6 @@ paths:
                 type: string
               target_role:
                 type: string
-              task_id:
-                type: string
               title:
                 type: string
               turns:
@@ -1261,6 +1788,12 @@ paths:
                     answered_at:
                       type: string
                     capability_key:
+                      type: string
+                    difficulty:
+                      type: string
+                    generation_mode:
+                      type: string
+                    intent:
                       type: string
                     ordinal:
                       type: integer
@@ -1760,14 +2293,56 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           description: ""
           schema:
             properties:
+              content_type:
+                type: string
+              created_at:
+                type: string
+              facts:
+                items:
+                  properties:
+                    confidence:
+                      type: number
+                    excerpt:
+                      type: string
+                    key:
+                      type: string
+                    type:
+                      type: string
+                    value: {}
+                  required:
+                  - type
+                  - key
+                  - value
+                  - excerpt
+                  - confidence
+                  type: object
+                type: array
+              file_name:
+                type: string
+              id:
+                type: string
+              parse_error:
+                type: string
+              processed_at:
+                type: string
+              size_bytes:
+                type: integer
               status:
                 type: string
-              task_id:
+              title:
                 type: string
+              updated_at:
+                type: string
+              uploaded_at:
+                type: string
+              version_id:
+                type: string
+              version_no:
+                type: integer
             type: object
       schemes:
       - https
@@ -1789,14 +2364,56 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           description: ""
           schema:
             properties:
+              content_type:
+                type: string
+              created_at:
+                type: string
+              facts:
+                items:
+                  properties:
+                    confidence:
+                      type: number
+                    excerpt:
+                      type: string
+                    key:
+                      type: string
+                    type:
+                      type: string
+                    value: {}
+                  required:
+                  - type
+                  - key
+                  - value
+                  - excerpt
+                  - confidence
+                  type: object
+                type: array
+              file_name:
+                type: string
+              id:
+                type: string
+              parse_error:
+                type: string
+              processed_at:
+                type: string
+              size_bytes:
+                type: integer
               status:
                 type: string
-              task_id:
+              title:
                 type: string
+              updated_at:
+                type: string
+              uploaded_at:
+                type: string
+              version_id:
+                type: string
+              version_no:
+                type: integer
             type: object
       schemes:
       - https
@@ -1849,97 +2466,12 @@ paths:
       schemes:
       - https
       summary: Create a browser-direct resume upload
-  /api/v1/tasks/{id}:
-    get:
-      operationId: workspaceGetTask
-      parameters:
-      - in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: ""
-          schema:
-            properties:
-              completed_at:
-                type: string
-              created_at:
-                type: string
-              error:
-                properties:
-                  code:
-                    type: string
-                  message:
-                    type: string
-                required:
-                - code
-                - message
-                type: object
-              id:
-                type: string
-              progress:
-                type: integer
-              reference:
-                properties:
-                  id:
-                    type: string
-                  title:
-                    type: string
-                  type:
-                    type: string
-                required:
-                - type
-                - id
-                type: object
-              result: {}
-              retry_of_task_id:
-                type: string
-              started_at:
-                type: string
-              status:
-                type: string
-              type:
-                type: string
-              updated_at:
-                type: string
-            type: object
-      schemes:
-      - https
-      summary: Return asynchronous task state
-  /api/v1/tasks/{id}/retry:
-    post:
-      consumes:
-      - application/x-www-form-urlencoded
-      operationId: workspaceRetryTask
-      parameters:
-      - in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: ""
-          schema:
-            properties:
-              status:
-                type: string
-              task_id:
-                type: string
-            type: object
-      schemes:
-      - https
-      summary: Retry a supported failed task
 produces:
 - application/json
 schemes:
 - https
 swagger: "2.0"
-x-date: "2026-08-14 01:28:30"
+x-date: "2026-08-14 14:10:30"
 x-description: This is a goctl generated swagger file.
 x-github: https://github.com/zeromicro/go-zero
 x-go-zero-doc: https://go-zero.dev/

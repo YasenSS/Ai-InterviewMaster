@@ -7,8 +7,6 @@ import type {
   InterviewSessionResponse,
   ResumePageResponse,
   ResumeDetailResponse,
-  TaskAcceptedResponse,
-  TaskResponse,
   UserResponse,
   SkillProfileResponse,
   AccountExportResponse,
@@ -52,13 +50,10 @@ export const api = {
       body: JSON.stringify(body),
     }),
   completeResumeUpload: (resumeId: string, versionId: string) =>
-    apiRequest<TaskAcceptedResponse>(
+	apiRequest<ResumeDetailResponse>(
       `/api/v1/resumes/${resumeId}/versions/${versionId}/complete`,
       { method: "POST" },
     ),
-  task: (id: string) => apiRequest<TaskResponse>(`/api/v1/tasks/${id}`),
-  retryTask: (id: string) =>
-    apiRequest<TaskAcceptedResponse>(`/api/v1/tasks/${id}/retry`, { method: "POST" }),
   interviews: async () => (await apiRequest<InterviewPageResponse>("/api/v1/interviews")).items,
   interviewPage: (params: { page: number; page_size: number; status?: string }) => {
     const search = new URLSearchParams({ page: String(params.page), page_size: String(params.page_size) });
@@ -76,10 +71,22 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ answer }),
     }),
+	 skipInterview: (id: string, ordinal: number) =>
+	   apiRequest<InterviewSessionResponse>(`/api/v1/interviews/${id}/turns/${ordinal}/skip`, {
+	     method: "POST",
+	   }),
+	 retryInterviewPreparation: (id: string) =>
+	   apiRequest<InterviewSessionResponse>(`/api/v1/interviews/${id}/preparation/retry`, { method: "POST" }),
+	 retryInterviewDecision: (id: string) =>
+	   apiRequest<InterviewSessionResponse>(`/api/v1/interviews/${id}/next-turn/retry`, { method: "POST" }),
+	 fallbackInterviewDecision: (id: string) =>
+	   apiRequest<InterviewSessionResponse>(`/api/v1/interviews/${id}/next-turn/fallback`, { method: "POST" }),
   completeInterview: (id: string, confirmIncomplete = false) =>
     apiRequest<InterviewSessionResponse>(`/api/v1/interviews/${id}/complete`, {
       method: "POST",
       body: JSON.stringify({ confirm_incomplete: confirmIncomplete }),
     }),
   report: (id: string) => apiRequest<InterviewReportResponse>(`/api/v1/interviews/${id}/report`),
+	 retryInterviewReport: (id: string) =>
+	   apiRequest<InterviewReportResponse>(`/api/v1/interviews/${id}/report/retry`, { method: "POST" }),
 };

@@ -7,7 +7,12 @@ import (
 	"github.com/hibiken/asynq"
 )
 
-const TypeQuestionGenerate = "question:generate"
+const (
+	// TypeInterviewPrepare is the Agent V2 preparation task. The legacy name is
+	// still registered by the worker so sessions created before v10 can finish.
+	TypeInterviewPrepare = "interview:prepare"
+	TypeQuestionGenerate = "question:generate"
+)
 
 type QuestionGeneratePayload struct {
 	TaskID          string `json:"task_id"`
@@ -22,9 +27,17 @@ type QuestionGeneratePayload struct {
 }
 
 func NewQuestionGenerateTask(payload QuestionGeneratePayload) (*asynq.Task, error) {
+	return newInterviewPrepareTask(TypeQuestionGenerate, payload)
+}
+
+func NewInterviewPrepareTask(payload QuestionGeneratePayload) (*asynq.Task, error) {
+	return newInterviewPrepareTask(TypeInterviewPrepare, payload)
+}
+
+func newInterviewPrepareTask(taskType string, payload QuestionGeneratePayload) (*asynq.Task, error) {
 	body, err := json.Marshal(payload)
 	if err != nil {
-		return nil, fmt.Errorf("marshal question generate task: %w", err)
+		return nil, fmt.Errorf("marshal interview prepare task: %w", err)
 	}
-	return asynq.NewTask(TypeQuestionGenerate, body), nil
+	return asynq.NewTask(taskType, body), nil
 }

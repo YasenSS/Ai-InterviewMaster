@@ -70,6 +70,10 @@ func main() {
 			ShutdownTimeout: c.ShutdownTimeout,
 		},
 	)
+	taskClient := asynq.NewClient(asynq.RedisClientOpt{
+		Addr: c.Runtime.Redis.Addr, Password: c.Runtime.Redis.Password, DB: c.Runtime.Redis.DB,
+	})
+	defer taskClient.Close()
 
 	redisClient := cache.NewRedis(c.Runtime.Redis)
 	defer redisClient.Close()
@@ -81,13 +85,15 @@ func main() {
 	mux := asynq.NewServeMux()
 	mux.HandleFunc(tasks.TypeNoop, tasks.HandleNoop)
 	mux.Handle(tasks.TypeResumeParse, tasks.ResumeParseHandler(db, store, c.Runtime.ObjectStore.Bucket, c.Runtime.Parser.TikaURL, chatModel))
+	mux.Handle(sharedtasks.TypeInterviewPrepare, tasks.InterviewPrepareHandler(db, chatModel))
+	mux.Handle(sharedtasks.TypeInterviewNextTurn, tasks.InterviewNextTurnHandler(db, chatModel))
 	mux.Handle(sharedtasks.TypeQuestionGenerate, tasks.QuestionGenerateHandler(db, chatModel))
 	mux.Handle(sharedtasks.TypeReportGenerate, tasks.ReportGenerateHandler(db, chatModel))
 	mux.Handle("object:cleanup", tasks.ObjectCleanupHandler(db, store, c.Runtime.ObjectStore.Bucket))
 	mux.Handle("asr:transcribe", tasks.ASRHandler(db, store, c.Runtime.ObjectStore.Bucket, c.Runtime.Parser.ASRURL))
 
 	slog.Info("starting worker", "environment", c.Runtime.Environment, "concurrency", c.Concurrency)
-	go runOpsLoop(ctx, db)
+	go runOpsLoop(ctx, db, taskClient)
 	if err := server.Run(mux); err != nil {
 		panic(err)
 	}

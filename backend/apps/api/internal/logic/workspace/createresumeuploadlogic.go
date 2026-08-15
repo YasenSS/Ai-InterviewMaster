@@ -37,7 +37,7 @@ func NewCompleteResumeUploadLogic(ctx context.Context, svcCtx *svc.ServiceContex
 	return &CompleteResumeUploadLogic{Logger: logx.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
 }
 
-func (l *CompleteResumeUploadLogic) CompleteResumeUpload(req *types.CompleteResumeUploadRequest) (*types.TaskAcceptedResponse, error) {
+func (l *CompleteResumeUploadLogic) CompleteResumeUpload(req *types.CompleteResumeUploadRequest) (*types.ResumeDetailResponse, error) {
 	userID, err := currentUserID(l.ctx)
 	if err != nil {
 		return nil, err
@@ -142,7 +142,7 @@ func NewReparseResumeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Rep
 	return &ReparseResumeLogic{Logger: logx.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
 }
 
-func (l *ReparseResumeLogic) ReparseResume(req *types.ResumePath) (*types.TaskAcceptedResponse, error) {
+func (l *ReparseResumeLogic) ReparseResume(req *types.ResumePath) (*types.ResumeDetailResponse, error) {
 	userID, err := currentUserID(l.ctx)
 	if err != nil {
 		return nil, err

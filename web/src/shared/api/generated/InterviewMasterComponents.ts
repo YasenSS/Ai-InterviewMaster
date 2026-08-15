@@ -35,12 +35,6 @@ export interface AccountExportResponse {
 	model_invocations: any
 }
 
-export interface AnswerInterviewRequest {
-	answer: string
-}
-export interface AnswerInterviewRequestParams {
-}
-
 export interface AuthResponse {
 	access_token: string
 	token_type: string
@@ -146,6 +140,14 @@ export interface InterviewListRequestParams {
 	sort?: string
 }
 
+export interface InterviewOperationResponse {
+	type: string
+	status: string
+	error_code?: string
+	error_summary?: string
+	retryable: boolean
+}
+
 export interface InterviewPageResponse {
 	items: Array<InterviewSummaryResponse>
 	page: number
@@ -170,7 +172,7 @@ export interface InterviewReportResponse {
 	degraded: boolean
 	error_code?: string
 	error_summary?: string
-	task_id?: string
+	operation?: InterviewOperationResponse
 	turns: Array<TurnReportResponse>
 	created_at: string
 	updated_at: string
@@ -194,7 +196,11 @@ export interface InterviewSessionResponse {
 	duration_seconds: number
 	created_at: string
 	updated_at: string
-	task_id?: string
+	phase: string
+	agent_mode: string
+	policy_version: string
+	completion_reason?: string
+	operation?: InterviewOperationResponse
 	question_duration_seconds: number
 	turns: Array<InterviewTurnResponse>
 }
@@ -236,6 +242,9 @@ export interface InterviewTurnResponse {
 	turn_kind?: string
 	capability_key?: string
 	parent_turn_id?: string
+	intent?: string
+	difficulty?: string
+	generation_mode?: string
 }
 
 export interface LoginRequest {
@@ -360,42 +369,6 @@ export interface SkillProfileResponse {
 	notes: string
 	source_session_id?: string
 	updated_at?: string
-}
-
-export interface TaskAcceptedResponse {
-	task_id: string
-	status: string
-}
-
-export interface TaskErrorResponse {
-	code: string
-	message: string
-}
-
-export interface TaskPath {
-}
-export interface TaskPathParams {
-}
-
-export interface TaskReferenceResponse {
-	type: string
-	id: string
-	title?: string
-}
-
-export interface TaskResponse {
-	id: string
-	type: string
-	status: string
-	progress: number
-	reference: TaskReferenceResponse
-	error?: TaskErrorResponse
-	result?: any
-	retry_of_task_id?: string
-	created_at: string
-	updated_at: string
-	started_at?: string
-	completed_at?: string
 }
 
 export interface TurnReportResponse {

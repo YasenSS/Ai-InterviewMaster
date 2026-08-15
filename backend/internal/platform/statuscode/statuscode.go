@@ -62,9 +62,10 @@ func successStatus(method, path string) int {
 	case "/api/v1/auth/logout", "/api/v1/auth/change-password", "/api/v1/me/delete":
 		return http.StatusNoContent
 	case "/api/v1/auth/register",
-		"/api/v1/resumes/uploads",
-		"/api/v1/interviews":
+		"/api/v1/resumes/uploads":
 		return http.StatusCreated
+	case "/api/v1/interviews":
+		return http.StatusAccepted
 	}
 
 	if strings.HasPrefix(path, "/api/v1/resumes/") &&
@@ -72,7 +73,12 @@ func successStatus(method, path string) int {
 			(strings.Contains(path, "/versions/") && strings.HasSuffix(path, "/complete"))) {
 		return http.StatusAccepted
 	}
-	if strings.HasPrefix(path, "/api/v1/tasks/") && strings.HasSuffix(path, "/retry") {
+	if strings.HasPrefix(path, "/api/v1/interviews/") &&
+		(strings.HasSuffix(path, "/preparation/retry") ||
+			strings.HasSuffix(path, "/next-turn/retry") ||
+			strings.HasSuffix(path, "/next-turn/fallback") ||
+			strings.HasSuffix(path, "/report/retry") ||
+			strings.HasSuffix(path, "/skip")) {
 		return http.StatusAccepted
 	}
 	if path == "/api/v1/beta/asr/tasks" {

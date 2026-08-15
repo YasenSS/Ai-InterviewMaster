@@ -224,7 +224,7 @@ func QuestionGenerateHandler(db *pgxpool.Pool, chat platformai.ChatModel) asynq.
 		}
 		activationTag, err := tx.Exec(ctx, `
 			UPDATE interview_sessions
-			SET status='active', current_ordinal=1, started_at=COALESCE(started_at, now()),
+			SET status='active', phase='answering', current_ordinal=1, started_at=COALESCE(started_at, now()),
 			    blueprint=$2, follow_up_budget=$3, current_capability_key=NULLIF($4,''),
 			    interviewer_model=$5, updated_at=now()
 			WHERE id=$1 AND user_id=$6 AND question_set_id=$7 AND status='preparing'`,

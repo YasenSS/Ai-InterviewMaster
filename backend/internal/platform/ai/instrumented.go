@@ -101,6 +101,7 @@ func (m InstrumentedChatModel) Generate(ctx context.Context, req GenerateRequest
 		CreatedAt:           started,
 		CompletedAt:         &finished,
 	}
+	response.InvocationID = rec.ID
 	if strings.TrimSpace(response.Message.Content) != "" {
 		rec.OutputHash = hashText(response.Message.Content)
 	}

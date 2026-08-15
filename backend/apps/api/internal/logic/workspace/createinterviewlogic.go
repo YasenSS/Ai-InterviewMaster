@@ -13,6 +13,7 @@ import (
 	"github.com/interviewmaster/interviewmaster/backend/apps/api/internal/svc"
 	"github.com/interviewmaster/interviewmaster/backend/apps/api/internal/types"
 	"github.com/interviewmaster/interviewmaster/backend/internal/aiworkflow"
+	"github.com/interviewmaster/interviewmaster/backend/internal/platform/ai/contract"
 	"github.com/interviewmaster/interviewmaster/backend/internal/platform/apperror"
 	sharedtasks "github.com/interviewmaster/interviewmaster/backend/internal/tasks"
 	"github.com/jackc/pgx/v5"
@@ -134,24 +135,36 @@ func loadInterview(
 		InterviewSummaryResponse: summary,
 		Turns:                    []types.InterviewTurnResponse{},
 	}
+	var operationType, operationStatus, errorCode, errorSummary string
 	err = svcCtx.Database.QueryRow(ctx, `
-		SELECT session.question_duration_seconds,
-		       COALESCE((
-		           SELECT task.id::text
-		           FROM async_tasks AS task
-		           WHERE task.user_id = session.user_id
-		             AND task.ref_id = session.id
-		             AND task.task_type = 'question.generate'
-		           ORDER BY task.created_at DESC
-		           LIMIT 1
-		       ), '')
+		SELECT session.question_duration_seconds, session.phase, session.agent_mode,
+		       session.policy_version, COALESCE(session.completion_reason,''),
+		       COALESCE(operation.task_type,''), COALESCE(operation.status::text,''),
+		       COALESCE(operation.error_code,''), COALESCE(operation.error_summary,'')
 		FROM interview_sessions AS session
+		LEFT JOIN LATERAL (
+			SELECT task_type,status,error_code,error_summary
+			FROM async_tasks
+			WHERE user_id=session.user_id AND ref_id=session.id
+			  AND task_type IN ('interview.prepare','interview.next_turn')
+			ORDER BY created_at DESC,id DESC LIMIT 1
+		) operation ON true
 		WHERE session.id = $1 AND session.user_id = $2`,
 		sessionID,
 		userID,
-	).Scan(&response.QuestionDurationSeconds, &response.TaskId)
+	).Scan(
+		&response.QuestionDurationSeconds, &response.Phase, &response.AgentMode,
+		&response.PolicyVersion, &response.CompletionReason,
+		&operationType, &operationStatus, &errorCode, &errorSummary,
+	)
 	if err != nil {
 		return nil, err
+	}
+	if operationType != "" && operationStatus != "succeeded" {
+		response.Operation = &types.InterviewOperationResponse{
+			Type: operationType, Status: operationStatus, ErrorCode: errorCode,
+			ErrorSummary: errorSummary, Retryable: operationStatus == "failed",
+		}
 	}
 	rows, err := svcCtx.Database.Query(ctx, `
 		SELECT ordinal,
@@ -179,7 +192,8 @@ func loadInterview(
 		       END,
 		       COALESCE(turn_kind, 'main'),
 		       COALESCE(capability_key, ''),
-		       COALESCE(parent_turn_id::text, '')
+		       COALESCE(parent_turn_id::text, ''),
+		       COALESCE(intent,''), COALESCE(difficulty,'medium'), COALESCE(generation_mode,'legacy')
 		FROM interview_turns
 		WHERE session_id = $1
 		ORDER BY ordinal ASC`,
@@ -205,6 +219,9 @@ func loadInterview(
 			&item.TurnKind,
 			&item.CapabilityKey,
 			&item.ParentTurnId,
+			&item.Intent,
+			&item.Difficulty,
+			&item.GenerationMode,
 		); err != nil {
 			return nil, err
 		}
@@ -219,7 +236,7 @@ func loadInterview(
 	if response.Status == "preparing" {
 		recoverInterviewPreparation(ctx, svcCtx, userID, sessionID)
 	}
-	if response.Status == "active" && response.CurrentOrdinal > 0 {
+	if response.AgentMode == "legacy" && response.Status == "active" && response.CurrentOrdinal > 0 {
 		var current *types.InterviewTurnResponse
 		for index := range response.Turns {
 			if response.Turns[index].Ordinal == response.CurrentOrdinal {
@@ -306,28 +323,34 @@ func prepareInterview(
 	questionSetID := uuid.NewString()
 	sessionID := uuid.NewString()
 	taskID := uuid.NewString()
-	inputHash := aiworkflow.InputHash(versionID, strings.ToLower(primaryLanguage), strings.ToLower(targetCompany), targetRole, aiworkflow.PromptV1)
+	inputHash := aiworkflow.InputHash(versionID, strings.ToLower(primaryLanguage), strings.ToLower(targetCompany), targetRole, aiworkflow.BlueprintV2Version)
 	_, err = tx.Exec(ctx, `
 		INSERT INTO question_sets (
 			id, user_id, resume_id, resume_version_id, target_role, status, input_hash, prompt_version,
 			primary_language, target_company
 		) VALUES ($1,$2,$3,$4,$5,'generating',$6,$7,$8,$9)`,
-		questionSetID, userID, req.ResumeId, versionID, targetRole, inputHash, aiworkflow.PromptV1, primaryLanguage, targetCompany)
+		questionSetID, userID, req.ResumeId, versionID, targetRole, inputHash, aiworkflow.BlueprintV2Version, primaryLanguage, targetCompany)
 	if err != nil {
 		return nil, err
 	}
 	_, err = tx.Exec(ctx, `
 		INSERT INTO interview_sessions (
 			id, user_id, resume_id, resume_version_id, question_set_id, title, status, current_ordinal,
-			question_duration_seconds, primary_language, target_company
-		) VALUES ($1,$2,$3,$4,$5,$6,'preparing',0,$7,$8,$9)`,
-		sessionID, userID, req.ResumeId, versionID, questionSetID, title, duration, primaryLanguage, targetCompany)
+			question_duration_seconds, primary_language, target_company, agent_mode, phase,
+			policy_version, interviewer_prompt_version, min_turns, target_turns, max_turns,
+			time_budget_minutes, max_follow_up_depth, max_follow_ups_total
+		) VALUES ($1,$2,$3,$4,$5,$6,'preparing',0,$7,$8,$9,$10,'preparing',
+		          'standard-v2',$11,$12,$13,$14,$15,$16,$17)`,
+		sessionID, userID, req.ResumeId, versionID, questionSetID, title, duration, primaryLanguage, targetCompany,
+		interviewAgentMode(svcCtx), aiworkflow.NextTurnV2Version,
+		contract.StandardMinTurns, contract.StandardTargetTurns, contract.StandardMaxTurns,
+		contract.StandardTimeBudgetMinutes, contract.StandardMaxFollowUpDepth, contract.StandardMaxFollowUpsTotal)
 	if err != nil {
 		return nil, err
 	}
 	_, err = tx.Exec(ctx, `
 		INSERT INTO async_tasks (id, user_id, task_type, ref_id, status, progress)
-		VALUES ($1,$2,'question.generate',$3,'pending',0)`, taskID, userID, sessionID)
+		VALUES ($1,$2,'interview.prepare',$3,'pending',0)`, taskID, userID, sessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -335,7 +358,7 @@ func prepareInterview(
 		return nil, err
 	}
 
-	queued, err := sharedtasks.NewQuestionGenerateTask(sharedtasks.QuestionGeneratePayload{
+	queued, err := sharedtasks.NewInterviewPrepareTask(sharedtasks.QuestionGeneratePayload{
 		TaskID: taskID, QuestionSetID: questionSetID, SessionID: sessionID,
 		UserID: userID, ResumeID: req.ResumeId, ResumeVersionID: versionID, PrimaryLanguage: primaryLanguage,
 		TargetCompany: targetCompany, TargetRole: targetRole,
@@ -368,7 +391,7 @@ func recoverInterviewPreparation(ctx context.Context, svcCtx *svc.ServiceContext
 			FROM async_tasks
 			WHERE user_id = session.user_id
 			  AND ref_id = session.id
-			  AND task_type = 'question.generate'
+			  AND task_type = 'interview.prepare'
 			  AND status = 'pending'
 			ORDER BY created_at DESC, id DESC
 			LIMIT 1
@@ -380,7 +403,7 @@ func recoverInterviewPreparation(ctx context.Context, svcCtx *svc.ServiceContext
 	if err != nil {
 		return
 	}
-	queued, err := sharedtasks.NewQuestionGenerateTask(sharedtasks.QuestionGeneratePayload{
+	queued, err := sharedtasks.NewInterviewPrepareTask(sharedtasks.QuestionGeneratePayload{
 		TaskID: taskID, QuestionSetID: questionSetID, SessionID: sessionID,
 		UserID: userID, ResumeID: resumeID, ResumeVersionID: resumeVersionID, PrimaryLanguage: primaryLanguage,
 		TargetCompany: targetCompany, TargetRole: targetRole,
@@ -487,6 +510,13 @@ func lockActiveInterview(
 	return status, currentOrdinal, nil
 }
 
+func interviewAgentMode(svcCtx *svc.ServiceContext) string {
+	if svcCtx.ChatModel == nil {
+		return "rule"
+	}
+	return "ai"
+}
+
 func advanceInterview(
 	ctx context.Context,
 	tx pgx.Tx,
@@ -540,6 +570,185 @@ func advanceInterview(
 }
 
 func saveInterviewAnswer(
+	ctx context.Context,
+	svcCtx *svc.ServiceContext,
+	userID, sessionID string,
+	ordinal int,
+	answer string,
+) (*types.InterviewSessionResponse, error) {
+	answer, err := validateAnswer(answer)
+	if err != nil {
+		return nil, err
+	}
+	var mode string
+	err = svcCtx.Database.QueryRow(ctx, `SELECT agent_mode FROM interview_sessions WHERE id=$1 AND user_id=$2`, sessionID, userID).Scan(&mode)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, resourceNotFound("INTERVIEW_NOT_FOUND", "未找到该面试", err)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if mode == "legacy" {
+		return saveLegacyInterviewAnswer(ctx, svcCtx, userID, sessionID, ordinal, answer)
+	}
+	return acceptNextTurnInput(ctx, svcCtx, userID, sessionID, ordinal, answer, false)
+}
+
+func skipInterviewTurn(
+	ctx context.Context,
+	svcCtx *svc.ServiceContext,
+	userID, sessionID string,
+	ordinal int,
+) (*types.InterviewSessionResponse, error) {
+	var mode string
+	err := svcCtx.Database.QueryRow(ctx, `SELECT agent_mode FROM interview_sessions WHERE id=$1 AND user_id=$2`, sessionID, userID).Scan(&mode)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, resourceNotFound("INTERVIEW_NOT_FOUND", "未找到该面试", err)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if mode == "legacy" {
+		return skipLegacyInterviewTurn(ctx, svcCtx, userID, sessionID, ordinal)
+	}
+	return acceptNextTurnInput(ctx, svcCtx, userID, sessionID, ordinal, "", true)
+}
+
+func acceptNextTurnInput(
+	ctx context.Context,
+	svcCtx *svc.ServiceContext,
+	userID, sessionID string,
+	ordinal int,
+	answer string,
+	skip bool,
+) (*types.InterviewSessionResponse, error) {
+	if ordinal < 1 {
+		return nil, apperror.Validation(map[string][]string{"ordinal": {"必须大于等于 1"}})
+	}
+	tx, err := svcCtx.Database.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+	var status, phase string
+	var currentOrdinal int
+	err = tx.QueryRow(ctx, `
+		SELECT status::text,phase,current_ordinal
+		FROM interview_sessions WHERE id=$1 AND user_id=$2 FOR UPDATE`, sessionID, userID,
+	).Scan(&status, &phase, &currentOrdinal)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, resourceNotFound("INTERVIEW_NOT_FOUND", "未找到该面试", err)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if status != "active" {
+		return nil, conflict("INTERVIEW_NOT_ACTIVE", "当前面试状态不允许作答", nil)
+	}
+	if currentOrdinal != ordinal {
+		return nil, conflict("INTERVIEW_TURN_NOT_CURRENT", "只能回答当前问题", map[string]any{"current_ordinal": currentOrdinal})
+	}
+	var turnID, existingAnswer string
+	var skippedAt *time.Time
+	err = tx.QueryRow(ctx, `
+		SELECT id::text,COALESCE(answer,''),skipped_at
+		FROM interview_turns WHERE session_id=$1 AND ordinal=$2 FOR UPDATE`, sessionID, ordinal,
+	).Scan(&turnID, &existingAnswer, &skippedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, resourceNotFound("INTERVIEW_TURN_NOT_FOUND", "未找到该面试题", err)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if existingAnswer != "" && (skip || existingAnswer != answer) {
+		return nil, conflict("INTERVIEW_TURN_ALREADY_ANSWERED", "该问题已提交不同答案，不能覆盖", nil)
+	}
+	if skippedAt != nil && !skip {
+		return nil, conflict("INTERVIEW_TURN_ALREADY_SKIPPED", "该问题已经跳过，不能重新作答", nil)
+	}
+	if phase == "deciding" || phase == "decision_failed" {
+		if (skip && skippedAt != nil) || (!skip && existingAnswer == answer) {
+			if err := tx.Commit(ctx); err != nil {
+				return nil, err
+			}
+			return loadInterview(ctx, svcCtx, userID, sessionID)
+		}
+		return nil, conflict("INTERVIEW_DECISION_IN_PROGRESS", "系统正在决定下一轮问题", nil)
+	}
+	if phase != "answering" {
+		return nil, conflict("INTERVIEW_NOT_ANSWERING", "当前不在作答阶段", nil)
+	}
+	if skip {
+		_, err = tx.Exec(ctx, `
+			UPDATE interview_turns
+			SET started_at=COALESCE(started_at,now()), skipped_at=COALESCE(skipped_at,now()),
+			    time_spent_seconds=GREATEST(time_spent_seconds,FLOOR(EXTRACT(EPOCH FROM (now()-COALESCE(started_at,now()))))::int)
+			WHERE id=$1 AND answer IS NULL`, turnID)
+	} else {
+		_, err = tx.Exec(ctx, `
+			UPDATE interview_turns
+			SET started_at=COALESCE(started_at,now()),answer=$2,answered_at=COALESCE(answered_at,now()),skipped_at=NULL,
+			    time_spent_seconds=GREATEST(time_spent_seconds,FLOOR(EXTRACT(EPOCH FROM (now()-COALESCE(started_at,now()))))::int)
+			WHERE id=$1 AND answer IS NULL AND skipped_at IS NULL`, turnID, answer)
+	}
+	if err != nil {
+		return nil, err
+	}
+	decisionID := uuid.NewString()
+	taskID := uuid.NewString()
+	inputHash := aiworkflow.InputHash(sessionID, turnID, answer, fmt.Sprint(skip), fmt.Sprint(ordinal))
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO interview_turn_decisions (id,session_id,answered_turn_id,user_id,status,input_hash)
+		VALUES ($1,$2,$3,$4,'pending',$5)`, decisionID, sessionID, turnID, userID, inputHash); err != nil {
+		return nil, err
+	}
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO async_tasks (id,user_id,task_type,ref_id,status,progress)
+		VALUES ($1,$2,'interview.next_turn',$3,'pending',0)`, taskID, userID, sessionID); err != nil {
+		return nil, err
+	}
+	if _, err := tx.Exec(ctx, `UPDATE interview_sessions SET phase='deciding',updated_at=now() WHERE id=$1`, sessionID); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	payload := sharedtasks.InterviewNextTurnPayload{
+		TaskID: taskID, DecisionID: decisionID, SessionID: sessionID,
+		AnsweredTurnID: turnID, UserID: userID,
+	}
+	queued, err := sharedtasks.NewInterviewNextTurnTask(payload)
+	if err == nil {
+		_, err = svcCtx.TaskClient.EnqueueContext(ctx, queued, asynq.Queue("default"), asynq.Unique(10*time.Minute))
+	}
+	if err != nil && !errors.Is(err, asynq.ErrDuplicateTask) {
+		compensateNextTurnEnqueue(ctx, svcCtx, payload, err)
+		return nil, apperror.Unavailable("下一轮问题暂时无法生成，请重试", nil, err)
+	}
+	return loadInterview(ctx, svcCtx, userID, sessionID)
+}
+
+func compensateNextTurnEnqueue(ctx context.Context, svcCtx *svc.ServiceContext, payload sharedtasks.InterviewNextTurnPayload, cause error) {
+	tx, err := svcCtx.Database.Begin(ctx)
+	if err != nil {
+		return
+	}
+	defer tx.Rollback(ctx)
+	_, _ = tx.Exec(ctx, `
+		UPDATE async_tasks SET status='failed',error_code='TASK_ENQUEUE_FAILED',
+		    error_summary='下一轮问题暂时无法生成',error_message=$2,completed_at=now(),updated_at=now()
+		WHERE id=$1 AND user_id=$3 AND status='pending'`, payload.TaskID, cause.Error(), payload.UserID)
+	_, _ = tx.Exec(ctx, `
+		UPDATE interview_turn_decisions SET status='failed',error_code='TASK_ENQUEUE_FAILED',
+		    error_summary='下一轮问题暂时无法生成',completed_at=now(),updated_at=now()
+		WHERE id=$1 AND user_id=$2 AND status='pending'`, payload.DecisionID, payload.UserID)
+	_, _ = tx.Exec(ctx, `
+		UPDATE interview_sessions SET phase='decision_failed',updated_at=now()
+		WHERE id=$1 AND user_id=$2 AND status='active' AND phase='deciding'`, payload.SessionID, payload.UserID)
+	_ = tx.Commit(ctx)
+}
+
+func saveLegacyInterviewAnswer(
 	ctx context.Context,
 	svcCtx *svc.ServiceContext,
 	userID, sessionID string,
@@ -630,7 +839,7 @@ func saveInterviewAnswer(
 	return loadInterview(ctx, svcCtx, userID, sessionID)
 }
 
-func skipInterviewTurn(
+func skipLegacyInterviewTurn(
 	ctx context.Context,
 	svcCtx *svc.ServiceContext,
 	userID, sessionID string,
@@ -713,15 +922,15 @@ func completeInterview(
 		return nil, err
 	}
 	defer tx.Rollback(ctx)
-	var status string
+	var status, phase, agentMode string
 	err = tx.QueryRow(ctx, `
-		SELECT status::text
+		SELECT status::text,phase,agent_mode
 		FROM interview_sessions
 		WHERE id = $1 AND user_id = $2
 		FOR UPDATE`,
 		sessionID,
 		userID,
-	).Scan(&status)
+	).Scan(&status, &phase, &agentMode)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, resourceNotFound("INTERVIEW_NOT_FOUND", "未找到该面试", err)
 	}
@@ -736,6 +945,9 @@ func completeInterview(
 	}
 	if status != "active" {
 		return nil, conflict("INTERVIEW_NOT_ACTIVE", "当前面试状态不能完成", nil)
+	}
+	if agentMode != "legacy" && phase != "answering" {
+		return nil, conflict("INTERVIEW_DECISION_IN_PROGRESS", "下一轮决策完成后才能结束面试", map[string]any{"phase": phase})
 	}
 	rows, err := tx.Query(ctx, `
 		SELECT ordinal
@@ -785,6 +997,7 @@ func completeInterview(
 	_, err = tx.Exec(ctx, `
 		UPDATE interview_sessions
 		SET status = 'completed',
+		    phase = 'completed',
 		    completed_at = now(),
 		    duration_seconds = GREATEST(
 		        0,
@@ -922,39 +1135,4 @@ func (l *CompleteInterviewLogic) CompleteInterview(req *types.CompleteInterviewR
 		return nil, err
 	}
 	return completeInterview(l.ctx, l.svcCtx, userID, req.Id, req.ConfirmIncomplete)
-}
-
-type AnswerInterviewLogic struct {
-	logx.Logger
-	ctx    context.Context
-	svcCtx *svc.ServiceContext
-}
-
-func NewAnswerInterviewLogic(ctx context.Context, svcCtx *svc.ServiceContext) *AnswerInterviewLogic {
-	return &AnswerInterviewLogic{Logger: logx.WithContext(ctx), ctx: ctx, svcCtx: svcCtx}
-}
-
-func (l *AnswerInterviewLogic) AnswerInterview(req *types.AnswerInterviewRequest) (*types.InterviewSessionResponse, error) {
-	userID, err := currentUserID(l.ctx)
-	if err != nil {
-		return nil, err
-	}
-	if err := validateID("id", req.Id); err != nil {
-		return nil, err
-	}
-	var ordinal int
-	err = l.svcCtx.Database.QueryRow(l.ctx, `
-		SELECT current_ordinal
-		FROM interview_sessions
-		WHERE id = $1 AND user_id = $2`,
-		req.Id,
-		userID,
-	).Scan(&ordinal)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, resourceNotFound("INTERVIEW_NOT_FOUND", "未找到该面试", err)
-	}
-	if err != nil {
-		return nil, err
-	}
-	return saveInterviewAnswer(l.ctx, l.svcCtx, userID, req.Id, ordinal, req.Answer)
 }

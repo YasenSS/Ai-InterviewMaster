@@ -110,11 +110,18 @@ func loadInterviewReport(
 	var quality map[string]any
 	_ = json.Unmarshal(qualityRaw, &quality)
 	response.QualityPassed, _ = quality["passed"].(bool)
+	var operationStatus, operationCode, operationSummary string
 	_ = svcCtx.Database.QueryRow(ctx, `
-		SELECT id::text FROM async_tasks
+		SELECT status::text,COALESCE(error_code,''),COALESCE(error_summary,'') FROM async_tasks
 		WHERE user_id=$1 AND ref_id=$2::uuid AND task_type='report.generate'
 		ORDER BY created_at DESC LIMIT 1`, userID, sessionID,
-	).Scan(&response.TaskId)
+	).Scan(&operationStatus, &operationCode, &operationSummary)
+	if operationStatus != "" && operationStatus != "succeeded" {
+		response.Operation = &types.InterviewOperationResponse{
+			Type: "report.generate", Status: operationStatus, ErrorCode: operationCode,
+			ErrorSummary: operationSummary, Retryable: operationStatus == "failed",
+		}
+	}
 	if response.Status == "pending" || response.Status == "running" || response.Status == "failed" {
 		return response, nil
 	}

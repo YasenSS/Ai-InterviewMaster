@@ -229,12 +229,17 @@ func isDOCX(data []byte) bool {
 	return hasContentTypes && hasDocument
 }
 
+type resumeParseTaskState struct {
+	TaskID string
+	Status string
+}
+
 func ensureResumeParseTask(
 	ctx context.Context,
 	svcCtx *svc.ServiceContext,
 	userID, resumeID, versionID string,
 	reuseSucceeded bool,
-) (*types.TaskAcceptedResponse, error) {
+) (resumeParseTaskState, error) {
 	statuses := []string{"pending", "running"}
 	if reuseSucceeded {
 		statuses = append(statuses, "succeeded")
@@ -254,16 +259,16 @@ func ensureResumeParseTask(
 		statuses,
 	).Scan(&existingID, &existingStatus)
 	if err == nil {
-		return &types.TaskAcceptedResponse{TaskId: existingID, Status: existingStatus}, nil
+		return resumeParseTaskState{TaskID: existingID, Status: existingStatus}, nil
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
-		return nil, err
+		return resumeParseTaskState{}, err
 	}
 
 	taskID := uuid.NewString()
 	tx, err := svcCtx.Database.Begin(ctx)
 	if err != nil {
-		return nil, err
+		return resumeParseTaskState{}, err
 	}
 	defer tx.Rollback(ctx)
 	_, err = tx.Exec(ctx, `
@@ -288,9 +293,9 @@ func ensureResumeParseTask(
 			versionID,
 		).Scan(&concurrentID, &concurrentStatus)
 		if queryErr == nil {
-			return &types.TaskAcceptedResponse{TaskId: concurrentID, Status: concurrentStatus}, nil
+			return resumeParseTaskState{TaskID: concurrentID, Status: concurrentStatus}, nil
 		}
-		return nil, err
+		return resumeParseTaskState{}, err
 	}
 	_, err = tx.Exec(ctx, `
 		UPDATE resumes
@@ -300,10 +305,10 @@ func ensureResumeParseTask(
 		userID,
 	)
 	if err != nil {
-		return nil, err
+		return resumeParseTaskState{}, err
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return nil, err
+		return resumeParseTaskState{}, err
 	}
 
 	task, err := sharedtasks.NewResumeParseTask(sharedtasks.ResumeParsePayload{
@@ -332,9 +337,9 @@ func ensureResumeParseTask(
 			UPDATE resumes SET status = 'failed', updated_at = now() WHERE id = $1`,
 			resumeID,
 		)
-		return nil, err
+		return resumeParseTaskState{}, err
 	}
-	return &types.TaskAcceptedResponse{TaskId: taskID, Status: "pending"}, nil
+	return resumeParseTaskState{TaskID: taskID, Status: "pending"}, nil
 }
 
 func scanResumeSummary(row pgx.Row) (types.ResumeSummaryResponse, error) {
@@ -683,7 +688,7 @@ func completeResumeUpload(
 	ctx context.Context,
 	svcCtx *svc.ServiceContext,
 	userID, resumeID, versionID string,
-) (*types.TaskAcceptedResponse, error) {
+) (*types.ResumeDetailResponse, error) {
 	var objectKey, fileName string
 	var expectedSize int64
 	err := svcCtx.Database.QueryRow(ctx, `
@@ -709,14 +714,17 @@ func completeResumeUpload(
 	if err := validateUploadedResume(ctx, svcCtx, objectKey, fileName, expectedSize); err != nil {
 		return nil, err
 	}
-	return ensureResumeParseTask(ctx, svcCtx, userID, resumeID, versionID, true)
+	if _, err := ensureResumeParseTask(ctx, svcCtx, userID, resumeID, versionID, true); err != nil {
+		return nil, err
+	}
+	return loadResume(ctx, svcCtx, userID, resumeID)
 }
 
 func reparseResume(
 	ctx context.Context,
 	svcCtx *svc.ServiceContext,
 	userID, resumeID string,
-) (*types.TaskAcceptedResponse, error) {
+) (*types.ResumeDetailResponse, error) {
 	var versionID, objectKey string
 	err := svcCtx.Database.QueryRow(ctx, `
 		SELECT version.id::text, version.object_key
@@ -740,5 +748,8 @@ func reparseResume(
 	); err != nil {
 		return nil, resourceNotFound("RESUME_UPLOAD_NOT_FOUND", "简历原始文件不存在", err)
 	}
-	return ensureResumeParseTask(ctx, svcCtx, userID, resumeID, versionID, false)
+	if _, err := ensureResumeParseTask(ctx, svcCtx, userID, resumeID, versionID, false); err != nil {
+		return nil, err
+	}
+	return loadResume(ctx, svcCtx, userID, resumeID)
 }

@@ -37,11 +37,6 @@ type AccountExportResponse struct {
 	ModelInvocations interface{}  `json:"model_invocations"`
 }
 
-type AnswerInterviewRequest struct {
-	Id     string `path:"id"`
-	Answer string `json:"answer"`
-}
-
 type AuthResponse struct {
 	AccessToken string       `json:"access_token"`
 	TokenType   string       `json:"token_type"`
@@ -144,6 +139,14 @@ type InterviewListRequest struct {
 	Sort     string   `form:"sort,optional"`
 }
 
+type InterviewOperationResponse struct {
+	Type         string `json:"type"`
+	Status       string `json:"status"`
+	ErrorCode    string `json:"error_code,optional"`
+	ErrorSummary string `json:"error_summary,optional"`
+	Retryable    bool   `json:"retryable"`
+}
+
 type InterviewPageResponse struct {
 	Items    []InterviewSummaryResponse `json:"items"`
 	Page     int                        `json:"page"`
@@ -156,28 +159,32 @@ type InterviewPath struct {
 }
 
 type InterviewReportResponse struct {
-	Id            string               `json:"id"`
-	SessionId     string               `json:"session_id"`
-	Status        string               `json:"status"`
-	OverallScore  int                  `json:"overall_score"`
-	Strengths     []string             `json:"strengths"`
-	Improvements  []string             `json:"improvements"`
-	NextSteps     []string             `json:"next_steps"`
-	QualityPassed bool                 `json:"quality_passed"`
-	Degraded      bool                 `json:"degraded"`
-	ErrorCode     string               `json:"error_code,optional"`
-	ErrorSummary  string               `json:"error_summary,optional"`
-	TaskId        string               `json:"task_id,optional"`
-	Turns         []TurnReportResponse `json:"turns"`
-	CreatedAt     string               `json:"created_at"`
-	UpdatedAt     string               `json:"updated_at"`
+	Id            string                      `json:"id"`
+	SessionId     string                      `json:"session_id"`
+	Status        string                      `json:"status"`
+	OverallScore  int                         `json:"overall_score"`
+	Strengths     []string                    `json:"strengths"`
+	Improvements  []string                    `json:"improvements"`
+	NextSteps     []string                    `json:"next_steps"`
+	QualityPassed bool                        `json:"quality_passed"`
+	Degraded      bool                        `json:"degraded"`
+	ErrorCode     string                      `json:"error_code,optional"`
+	ErrorSummary  string                      `json:"error_summary,optional"`
+	Operation     *InterviewOperationResponse `json:"operation,optional"`
+	Turns         []TurnReportResponse        `json:"turns"`
+	CreatedAt     string                      `json:"created_at"`
+	UpdatedAt     string                      `json:"updated_at"`
 }
 
 type InterviewSessionResponse struct {
 	InterviewSummaryResponse
-	TaskId                  string                  `json:"task_id,optional"`
-	QuestionDurationSeconds int                     `json:"question_duration_seconds"`
-	Turns                   []InterviewTurnResponse `json:"turns"`
+	Phase                   string                      `json:"phase"`
+	AgentMode               string                      `json:"agent_mode"`
+	PolicyVersion           string                      `json:"policy_version"`
+	CompletionReason        string                      `json:"completion_reason,optional"`
+	Operation               *InterviewOperationResponse `json:"operation,optional"`
+	QuestionDurationSeconds int                         `json:"question_duration_seconds"`
+	Turns                   []InterviewTurnResponse     `json:"turns"`
 }
 
 type InterviewSummaryResponse struct {
@@ -217,6 +224,9 @@ type InterviewTurnResponse struct {
 	TurnKind         string `json:"turn_kind,optional"`
 	CapabilityKey    string `json:"capability_key,optional"`
 	ParentTurnId     string `json:"parent_turn_id,optional"`
+	Intent           string `json:"intent,optional"`
+	Difficulty       string `json:"difficulty,optional"`
+	GenerationMode   string `json:"generation_mode,optional"`
 }
 
 type LoginRequest struct {
@@ -330,41 +340,6 @@ type SkillProfileResponse struct {
 	Notes           string   `json:"notes"`
 	SourceSessionId string   `json:"source_session_id,optional"`
 	UpdatedAt       string   `json:"updated_at,optional"`
-}
-
-type TaskAcceptedResponse struct {
-	TaskId string `json:"task_id"`
-	Status string `json:"status"`
-}
-
-type TaskErrorResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
-
-type TaskPath struct {
-	Id string `path:"id"`
-}
-
-type TaskReferenceResponse struct {
-	Type  string `json:"type"`
-	Id    string `json:"id"`
-	Title string `json:"title,optional"`
-}
-
-type TaskResponse struct {
-	Id            string                `json:"id"`
-	Type          string                `json:"type"`
-	Status        string                `json:"status"`
-	Progress      int                   `json:"progress"`
-	Reference     TaskReferenceResponse `json:"reference"`
-	Error         *TaskErrorResponse    `json:"error,optional"`
-	Result        interface{}           `json:"result,optional"`
-	RetryOfTaskId string                `json:"retry_of_task_id,optional"`
-	CreatedAt     string                `json:"created_at"`
-	UpdatedAt     string                `json:"updated_at"`
-	StartedAt     string                `json:"started_at,optional"`
-	CompletedAt   string                `json:"completed_at,optional"`
 }
 
 type TurnReportResponse struct {

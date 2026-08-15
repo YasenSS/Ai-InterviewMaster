@@ -234,45 +234,84 @@ type InterviewReport struct {
 }
 
 type InterviewSession struct {
-	ID                      pgtype.UUID        `json:"id"`
-	UserID                  pgtype.UUID        `json:"user_id"`
-	ResumeID                pgtype.UUID        `json:"resume_id"`
-	QuestionSetID           pgtype.UUID        `json:"question_set_id"`
-	Title                   string             `json:"title"`
-	Status                  InterviewStatus    `json:"status"`
-	CurrentOrdinal          int32              `json:"current_ordinal"`
-	CreatedAt               pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt               pgtype.Timestamptz `json:"updated_at"`
-	CompletedAt             pgtype.Timestamptz `json:"completed_at"`
-	StartedAt               pgtype.Timestamptz `json:"started_at"`
-	DurationSeconds         int32              `json:"duration_seconds"`
-	QuestionDurationSeconds int32              `json:"question_duration_seconds"`
-	Blueprint               []byte             `json:"blueprint"`
-	CurrentCapabilityKey    pgtype.Text        `json:"current_capability_key"`
-	FollowUpsUsed           int32              `json:"follow_ups_used"`
-	FollowUpBudget          int32              `json:"follow_up_budget"`
-	InterviewerModel        pgtype.Text        `json:"interviewer_model"`
-	PrimaryLanguage         string             `json:"primary_language"`
-	TargetCompany           string             `json:"target_company"`
-	ResumeVersionID         pgtype.UUID        `json:"resume_version_id"`
+	ID                       pgtype.UUID        `json:"id"`
+	UserID                   pgtype.UUID        `json:"user_id"`
+	ResumeID                 pgtype.UUID        `json:"resume_id"`
+	QuestionSetID            pgtype.UUID        `json:"question_set_id"`
+	Title                    string             `json:"title"`
+	Status                   InterviewStatus    `json:"status"`
+	CurrentOrdinal           int32              `json:"current_ordinal"`
+	CreatedAt                pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
+	CompletedAt              pgtype.Timestamptz `json:"completed_at"`
+	StartedAt                pgtype.Timestamptz `json:"started_at"`
+	DurationSeconds          int32              `json:"duration_seconds"`
+	QuestionDurationSeconds  int32              `json:"question_duration_seconds"`
+	Blueprint                []byte             `json:"blueprint"`
+	CurrentCapabilityKey     pgtype.Text        `json:"current_capability_key"`
+	FollowUpsUsed            int32              `json:"follow_ups_used"`
+	FollowUpBudget           int32              `json:"follow_up_budget"`
+	InterviewerModel         pgtype.Text        `json:"interviewer_model"`
+	PrimaryLanguage          string             `json:"primary_language"`
+	TargetCompany            string             `json:"target_company"`
+	ResumeVersionID          pgtype.UUID        `json:"resume_version_id"`
+	AgentMode                string             `json:"agent_mode"`
+	Phase                    string             `json:"phase"`
+	PolicyVersion            string             `json:"policy_version"`
+	InterviewerPromptVersion string             `json:"interviewer_prompt_version"`
+	MinTurns                 int32              `json:"min_turns"`
+	TargetTurns              int32              `json:"target_turns"`
+	MaxTurns                 int32              `json:"max_turns"`
+	TimeBudgetMinutes        int32              `json:"time_budget_minutes"`
+	MaxFollowUpDepth         int32              `json:"max_follow_up_depth"`
+	MaxFollowUpsTotal        int32              `json:"max_follow_ups_total"`
+	CapabilityProgress       []byte             `json:"capability_progress"`
+	CompletionReason         pgtype.Text        `json:"completion_reason"`
+	DecisionVersion          int64              `json:"decision_version"`
 }
 
 type InterviewTurn struct {
-	ID               pgtype.UUID        `json:"id"`
-	SessionID        pgtype.UUID        `json:"session_id"`
-	Ordinal          int32              `json:"ordinal"`
-	Question         string             `json:"question"`
-	Answer           pgtype.Text        `json:"answer"`
-	CreatedAt        pgtype.Timestamptz `json:"created_at"`
-	AnsweredAt       pgtype.Timestamptz `json:"answered_at"`
-	StartedAt        pgtype.Timestamptz `json:"started_at"`
-	SkippedAt        pgtype.Timestamptz `json:"skipped_at"`
-	TimeSpentSeconds int32              `json:"time_spent_seconds"`
-	TurnKind         string             `json:"turn_kind"`
-	ParentTurnID     pgtype.UUID        `json:"parent_turn_id"`
-	CapabilityKey    pgtype.Text        `json:"capability_key"`
-	InvocationID     pgtype.UUID        `json:"invocation_id"`
-	SourceQuestionID pgtype.UUID        `json:"source_question_id"`
+	ID                  pgtype.UUID        `json:"id"`
+	SessionID           pgtype.UUID        `json:"session_id"`
+	Ordinal             int32              `json:"ordinal"`
+	Question            string             `json:"question"`
+	Answer              pgtype.Text        `json:"answer"`
+	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+	AnsweredAt          pgtype.Timestamptz `json:"answered_at"`
+	StartedAt           pgtype.Timestamptz `json:"started_at"`
+	SkippedAt           pgtype.Timestamptz `json:"skipped_at"`
+	TimeSpentSeconds    int32              `json:"time_spent_seconds"`
+	TurnKind            string             `json:"turn_kind"`
+	ParentTurnID        pgtype.UUID        `json:"parent_turn_id"`
+	CapabilityKey       pgtype.Text        `json:"capability_key"`
+	InvocationID        pgtype.UUID        `json:"invocation_id"`
+	SourceQuestionID    pgtype.UUID        `json:"source_question_id"`
+	Intent              string             `json:"intent"`
+	ExpectedPoints      []byte             `json:"expected_points"`
+	Difficulty          string             `json:"difficulty"`
+	EvidenceFactIds     []byte             `json:"evidence_fact_ids"`
+	DecisionReason      string             `json:"decision_reason"`
+	CoverageObservation []byte             `json:"coverage_observation"`
+	GenerationMode      string             `json:"generation_mode"`
+}
+
+type InterviewTurnDecision struct {
+	ID                pgtype.UUID        `json:"id"`
+	SessionID         pgtype.UUID        `json:"session_id"`
+	AnsweredTurnID    pgtype.UUID        `json:"answered_turn_id"`
+	NextTurnID        pgtype.UUID        `json:"next_turn_id"`
+	UserID            pgtype.UUID        `json:"user_id"`
+	Status            string             `json:"status"`
+	Action            pgtype.Text        `json:"action"`
+	Attempt           int32              `json:"attempt"`
+	InputHash         string             `json:"input_hash"`
+	ModelInvocationID pgtype.UUID        `json:"model_invocation_id"`
+	ErrorCode         pgtype.Text        `json:"error_code"`
+	ErrorSummary      pgtype.Text        `json:"error_summary"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	StartedAt         pgtype.Timestamptz `json:"started_at"`
+	CompletedAt       pgtype.Timestamptz `json:"completed_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
 }
 
 type InterviewTurnReport struct {
@@ -336,6 +375,7 @@ type Question struct {
 	FollowUpHint    pgtype.Text `json:"follow_up_hint"`
 	CapabilityKey   pgtype.Text `json:"capability_key"`
 	Difficulty      pgtype.Text `json:"difficulty"`
+	MaterialKind    string      `json:"material_kind"`
 }
 
 type QuestionSet struct {

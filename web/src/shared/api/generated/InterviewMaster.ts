@@ -117,15 +117,6 @@ export function getInterview(params: components.InterviewPathParams, id: string)
 }
 
 /**
- * @description "Deprecated: use PUT /interviews/:id/turns/:ordinal/answer"
- * @param params
- * @param req
- */
-export function answerInterview(params: components.AnswerInterviewRequestParams, req: components.AnswerInterviewRequest, id: string) {
-	return webapi.post<components.InterviewSessionResponse>(`/api/v1/interviews/${id}/answer`, params, req)
-}
-
-/**
  * @description "Complete and lock an interview"
  * @param params
  * @param req
@@ -135,11 +126,43 @@ export function completeInterview(params: components.CompleteInterviewRequestPar
 }
 
 /**
+ * @description "Continue a failed decision with an explicitly marked fallback question"
+ * @param params
+ */
+export function fallbackInterviewDecision(params: components.InterviewPathParams, id: string) {
+	return webapi.post<components.InterviewSessionResponse>(`/api/v1/interviews/${id}/next-turn/fallback`, params)
+}
+
+/**
+ * @description "Retry the failed decision for the current answered turn"
+ * @param params
+ */
+export function retryInterviewDecision(params: components.InterviewPathParams, id: string) {
+	return webapi.post<components.InterviewSessionResponse>(`/api/v1/interviews/${id}/next-turn/retry`, params)
+}
+
+/**
+ * @description "Retry a failed interview preparation without exposing an internal task"
+ * @param params
+ */
+export function retryInterviewPreparation(params: components.InterviewPathParams, id: string) {
+	return webapi.post<components.InterviewSessionResponse>(`/api/v1/interviews/${id}/preparation/retry`, params)
+}
+
+/**
  * @description "Return or generate the unique interview report"
  * @param params
  */
 export function getInterviewReport(params: components.InterviewPathParams, id: string) {
 	return webapi.get<components.InterviewReportResponse>(`/api/v1/interviews/${id}/report`, params)
+}
+
+/**
+ * @description "Retry a failed report evaluation without exposing an internal task"
+ * @param params
+ */
+export function retryInterviewReport(params: components.InterviewPathParams, id: string) {
+	return webapi.post<components.InterviewReportResponse>(`/api/v1/interviews/${id}/report/retry`, params)
 }
 
 /**
@@ -249,7 +272,7 @@ export function deleteResume(params: components.ResumePathParams, id: string) {
  * @param params
  */
 export function reparseResume(params: components.ResumePathParams, id: string) {
-	return webapi.post<components.TaskAcceptedResponse>(`/api/v1/resumes/${id}/reparse`, params)
+	return webapi.post<components.ResumeDetailResponse>(`/api/v1/resumes/${id}/reparse`, params)
 }
 
 /**
@@ -257,7 +280,7 @@ export function reparseResume(params: components.ResumePathParams, id: string) {
  * @param params
  */
 export function completeResumeUpload(params: components.CompleteResumeUploadRequestParams, id: string, versionId: string) {
-	return webapi.post<components.TaskAcceptedResponse>(`/api/v1/resumes/${id}/versions/${versionId}/complete`, params)
+	return webapi.post<components.ResumeDetailResponse>(`/api/v1/resumes/${id}/versions/${versionId}/complete`, params)
 }
 
 /**
@@ -266,20 +289,4 @@ export function completeResumeUpload(params: components.CompleteResumeUploadRequ
  */
 export function createResumeUpload(req: components.CreateResumeUploadRequest) {
 	return webapi.post<components.CreateResumeUploadResponse>(`/api/v1/resumes/uploads`, req)
-}
-
-/**
- * @description "Return asynchronous task state"
- * @param params
- */
-export function getTask(params: components.TaskPathParams, id: string) {
-	return webapi.get<components.TaskResponse>(`/api/v1/tasks/${id}`, params)
-}
-
-/**
- * @description "Retry a supported failed task"
- * @param params
- */
-export function retryTask(params: components.TaskPathParams, id: string) {
-	return webapi.post<components.TaskAcceptedResponse>(`/api/v1/tasks/${id}/retry`, params)
 }

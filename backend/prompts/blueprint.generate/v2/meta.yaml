@@ -1,0 +1,5 @@
+prompt_key: blueprint.generate
+version: v2
+temperature: 0.2
+max_output_tokens: 1800
+schema: schema.json

@@ -133,3 +133,46 @@ func enqueueReportTask(ctx context.Context, svcCtx *svc.ServiceContext, userID, 
 	}
 	return nil
 }
+
+func retryReportGeneration(ctx context.Context, svcCtx *svc.ServiceContext, userID, sessionID string) (string, error) {
+	tx, err := svcCtx.Database.Begin(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback(ctx)
+	var reportID, status string
+	err = tx.QueryRow(ctx, `
+		SELECT report.id::text,report.status
+		FROM interview_reports report
+		JOIN interview_sessions session ON session.id=report.session_id
+		WHERE report.session_id=$1 AND session.user_id=$2 AND session.status='completed'
+		FOR UPDATE OF report`, sessionID, userID,
+	).Scan(&reportID, &status)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", resourceNotFound("INTERVIEW_REPORT_NOT_FOUND", "未找到该面试报告", err)
+	}
+	if err != nil {
+		return "", err
+	}
+	if status != "failed" {
+		return "", conflict("INTERVIEW_REPORT_NOT_FAILED", "只有生成失败的报告可以重试", nil)
+	}
+	taskID := uuid.NewString()
+	if _, err := tx.Exec(ctx, `
+		UPDATE interview_reports SET status='pending',error_code=NULL,error_summary=NULL,updated_at=now()
+		WHERE id=$1`, reportID); err != nil {
+		return "", err
+	}
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO async_tasks (id,user_id,task_type,ref_id,status,progress)
+		VALUES ($1,$2,'report.generate',$3,'pending',0)`, taskID, userID, sessionID); err != nil {
+		return "", err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return "", err
+	}
+	if err := enqueueReportTask(ctx, svcCtx, userID, sessionID, reportID, taskID); err != nil {
+		return "", err
+	}
+	return reportID, nil
+}

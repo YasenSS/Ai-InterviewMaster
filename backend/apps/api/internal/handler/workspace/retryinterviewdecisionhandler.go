@@ -12,20 +12,21 @@ import (
 	"github.com/zeromicro/go-zero/rest/httpx"
 )
 
-func AnswerInterviewHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+// Retry the failed decision for the current answered turn
+func RetryInterviewDecisionHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req types.AnswerInterviewRequest
+		var req types.InterviewPath
 		if err := httpx.Parse(r, &req); err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)
 			return
 		}
 
-		l := workspace.NewAnswerInterviewLogic(r.Context(), svcCtx)
-		resp, err := l.AnswerInterview(&req)
+		l := workspace.NewRetryInterviewDecisionLogic(r.Context(), svcCtx)
+		resp, err := l.RetryInterviewDecision(&req)
 		if err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)
 		} else {
-			httpx.OkJsonCtx(r.Context(), w, resp)
+			httpx.WriteJsonCtx(r.Context(), w, http.StatusAccepted, resp)
 		}
 	}
 }

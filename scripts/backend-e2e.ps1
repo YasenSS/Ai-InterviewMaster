@@ -77,17 +77,17 @@ function Put-PresignedObject {
     }
 }
 
-function Wait-Task {
+function Wait-Resume {
     param(
         [System.Net.Http.HttpClient]$Client,
-        [string]$TaskId,
+		[string]$ResumeId,
         [string]$AccessToken,
         [string]$Step
     )
     for ($attempt = 0; $attempt -lt 60; $attempt++) {
-        $response = Invoke-Api $Client "GET" "/api/v1/tasks/$TaskId" $null $AccessToken
+		$response = Invoke-Api $Client "GET" "/api/v1/resumes/$ResumeId" $null $AccessToken
         Assert-Status $response 200 $Step
-        if ($response.Data.status -in @("succeeded", "failed")) {
+		if ($response.Data.status -in @("completed", "failed")) {
             return $response
         }
         Start-Sleep -Milliseconds 500
@@ -159,9 +159,9 @@ Put-PresignedObject $upload.Data.upload_url $resumeBytes "text/plain"
 
 $completeUpload = Invoke-Api $accountA.Client "POST" "/api/v1/resumes/$resumeId/versions/$versionId/complete" $null $tokenA
 Assert-Status $completeUpload 202 "complete resume upload"
-$parseTask = Wait-Task $accountA.Client $completeUpload.Data.task_id $tokenA "parse resume"
-if ($parseTask.Data.status -ne "succeeded") {
-    throw "resume parse failed: $($parseTask.Text)"
+$parsedResume = Wait-Resume $accountA.Client $resumeId $tokenA "parse resume"
+if ($parsedResume.Data.status -ne "completed") {
+	throw "resume parse failed: $($parsedResume.Text)"
 }
 
 $invalidLanguage = Invoke-Api $accountA.Client "POST" "/api/v1/interviews" @{
@@ -177,10 +177,16 @@ $created = Invoke-Api $accountA.Client "POST" "/api/v1/interviews" @{
     target_company              = "Example Corp"
     question_duration_seconds   = 180
 } $tokenA
-Assert-Status $created 201 "create interview directly"
+Assert-Status $created 202 "create interview directly"
 $interviewId = $created.Data.id
-if ($created.Data.status -notin @("preparing", "active") -or -not $created.Data.task_id) {
+if ($created.Data.status -notin @("preparing", "active") -or
+    $created.Data.phase -notin @("preparing", "answering") -or
+    $created.Data.agent_mode -notin @("ai", "rule")) {
 	throw "new interview did not enter preparation or become active"
+}
+
+if ($null -ne $created.Data.PSObject.Properties["task_id"]) {
+    throw "interview response leaked an internal task id"
 }
 if ($null -ne $created.Data.PSObject.Properties["question_set"] -or
     $null -ne $created.Data.PSObject.Properties["job_description"]) {
@@ -208,14 +214,28 @@ $firstOrdinal = $session.Data.current_ordinal
 for ($turnIndex = 0; $turnIndex -lt 15 -and $session.Data.status -eq "active"; $turnIndex++) {
     $ordinal = $session.Data.current_ordinal
     $answer = "For turn $ordinal I would establish context and measurable goals, implement the change with idempotency and monitoring, then verify the result with production metrics."
-    $answered = Invoke-Api $accountA.Client "PUT" "/api/v1/interviews/$interviewId/turns/$ordinal/answer" @{
-        answer = $answer
-    } $tokenA
-    Assert-Status $answered 200 "answer adaptive turn $ordinal"
-    $session = $answered
+	$answered = Invoke-Api $accountA.Client "PUT" "/api/v1/interviews/$interviewId/turns/$ordinal/answer" @{
+		answer = $answer
+	} $tokenA
+	Assert-Status $answered 202 "answer adaptive turn $ordinal"
+	if ($answered.Data.phase -ne "deciding") {
+		throw "answer did not enter the durable deciding phase"
+	}
+	for ($attempt = 0; $attempt -lt 120; $attempt++) {
+		$session = Invoke-Api $accountA.Client "GET" "/api/v1/interviews/$interviewId" $null $tokenA
+		Assert-Status $session 200 "wait for next-turn decision"
+		if ($session.Data.phase -ne "deciding") { break }
+		Start-Sleep -Milliseconds 250
+	}
+	if ($session.Data.phase -eq "decision_failed") {
+		throw "next-turn decision failed: $($session.Text)"
+	}
 }
 if ($session.Data.status -ne "completed") {
-    throw "adaptive interview did not complete within its bounded turn budget: $($session.Text)"
+	throw "adaptive interview did not complete within its bounded turn budget: $($session.Text)"
+}
+if ($session.Data.turns.Count -le 5) {
+	throw "Agent V2 regressed to a fixed five-question interview"
 }
 
 $overwrite = Invoke-Api $accountA.Client "PUT" "/api/v1/interviews/$interviewId/turns/$firstOrdinal/answer" @{
@@ -256,8 +276,8 @@ if ($resumeDelete.Text -match "question_set|题集") {
     throw "resume deletion leaked the internal candidate-question resource"
 }
 
-$crossUserTask = Invoke-Api $accountB.Client "GET" "/api/v1/tasks/$($completeUpload.Data.task_id)" $null $tokenB
-Assert-Status $crossUserTask 404 "cross-user task access"
+$crossUserResume = Invoke-Api $accountB.Client "GET" "/api/v1/resumes/$resumeId" $null $tokenB
+Assert-Status $crossUserResume 404 "cross-user resume access"
 $dashboard = Invoke-Api $accountA.Client "GET" "/api/v1/dashboard/summary" $null $tokenA
 Assert-Status $dashboard 200 "dashboard summary"
 if ($dashboard.Data.counts.completed_interviews -lt 1 -or $dashboard.Data.score_trend.Count -lt 1) {

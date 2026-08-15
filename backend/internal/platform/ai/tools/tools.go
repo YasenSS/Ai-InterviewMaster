@@ -23,12 +23,23 @@ type factHit struct {
 // ResumeFactsTool looks up facts for a constructor-bound user. Model args
 // cannot change the tenant scope.
 type ResumeFactsTool struct {
-	DB     *pgxpool.Pool
-	UserID string
+	DB              *pgxpool.Pool
+	UserID          string
+	ResumeVersionID string
 }
 
 func NewResumeFactsTool(db *pgxpool.Pool, userID string) *ResumeFactsTool {
 	return &ResumeFactsTool{DB: db, UserID: strings.TrimSpace(userID)}
+}
+
+// NewResumeVersionFactsTool pins retrieval to the immutable resume snapshot
+// owned by the interview session.
+func NewResumeVersionFactsTool(db *pgxpool.Pool, userID, resumeVersionID string) *ResumeFactsTool {
+	return &ResumeFactsTool{
+		DB:              db,
+		UserID:          strings.TrimSpace(userID),
+		ResumeVersionID: strings.TrimSpace(resumeVersionID),
+	}
 }
 
 func (t *ResumeFactsTool) Name() string { return "lookup_resume_facts" }
@@ -62,6 +73,7 @@ func (t *ResumeFactsTool) Call(ctx context.Context, args string) (string, error)
 		JOIN resume_versions AS version ON version.id = fact.resume_version_id
 		JOIN resumes AS resume ON resume.id = version.resume_id
 		WHERE resume.user_id = $1
+		  AND ($4 = '' OR version.id::text = $4)
 		  AND (
 		        fact.fact_key ILIKE $2 ESCAPE '\'
 		     OR fact.source_excerpt ILIKE $2 ESCAPE '\'
@@ -72,6 +84,7 @@ func (t *ResumeFactsTool) Call(ctx context.Context, args string) (string, error)
 		t.UserID,
 		pattern,
 		maxHits,
+		t.ResumeVersionID,
 	)
 	if err != nil {
 		return "", err

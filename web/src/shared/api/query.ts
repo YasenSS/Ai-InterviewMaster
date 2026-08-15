@@ -6,7 +6,6 @@ export const queryKeys = {
   interviews: (filters?: object) => ["interviews", filters ?? {}] as const,
   interview: (id: string) => ["interviews", id] as const,
   report: (id: string) => ["interviews", id, "report"] as const,
-  task: (id: string) => ["tasks", id] as const,
 };
 
 export const cacheTimes = {

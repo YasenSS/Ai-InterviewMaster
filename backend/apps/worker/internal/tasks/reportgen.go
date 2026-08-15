@@ -14,6 +14,7 @@ import (
 	sharedtasks "github.com/interviewmaster/interviewmaster/backend/internal/tasks"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/sync/errgroup"
 )
 
 func ReportGenerateHandler(db *pgxpool.Pool, chat platformai.ChatModel) asynq.HandlerFunc {
@@ -70,9 +71,12 @@ func ReportGenerateHandler(db *pgxpool.Pool, chat platformai.ChatModel) asynq.Ha
 		rows, err := db.Query(ctx, `
 			SELECT turn.id::text,
 			       turn.question,
-			       COALESCE(q.intent, NULLIF(turn.capability_key, ''), '动态追问'),
+			       COALESCE(NULLIF(turn.intent, ''), q.intent, NULLIF(turn.capability_key, ''), '动态追问'),
 			       COALESCE(turn.answer, ''),
-			       COALESCE(q.expected_points, '[]'::jsonb)
+			       CASE WHEN jsonb_array_length(turn.expected_points) > 0
+			            THEN turn.expected_points
+			            ELSE COALESCE(q.expected_points, '[]'::jsonb)
+			       END
 			FROM interview_turns AS turn
 			LEFT JOIN questions AS q ON q.id = turn.source_question_id
 			JOIN interview_sessions AS owner_session ON owner_session.id=turn.session_id
@@ -123,38 +127,53 @@ func ReportGenerateHandler(db *pgxpool.Pool, chat platformai.ChatModel) asynq.Ha
 			golden   string
 			evidence []string
 		}
-		scored := make([]scoredTurn, 0, len(turns))
+		scored := make([]scoredTurn, len(turns))
 		total := 0
 		answered := 0
 		degraded := chat == nil
-		for _, turn := range turns {
-			item := scoredTurn{turn: turn, evidence: []string{}}
-			if chat != nil {
-				eval, score, _, evalErr := aiworkflow.EvaluateTurn(ctx, chat, payload.UserID, payload.TaskID, payload.SessionID, turn.Question, turn.Intent, turn.Answer, turn.Expected, facts)
-				if evalErr != nil {
-					return failReport(ctx, db, payload, "AI_GENERATION_UNAVAILABLE", "评分生成失败，请重试", evalErr)
-				}
-				item.eval = eval
-				item.score = score
-				item.critique = strings.Join(eval.Improvements, "；")
-				if item.critique == "" && len(eval.Dimensions) > 0 {
-					item.critique = eval.Dimensions[0].Reason
-				}
-				item.golden = eval.GoldenAnswer
-				item.evidence = eval.Evidence
-			} else {
+		if chat != nil {
+			group, groupCtx := errgroup.WithContext(ctx)
+			group.SetLimit(2)
+			for index, turn := range turns {
+				index, turn := index, turn
+				group.Go(func() error {
+					item := scoredTurn{turn: turn, evidence: []string{}}
+					eval, score, _, evalErr := aiworkflow.EvaluateTurn(groupCtx, chat, payload.UserID, payload.TaskID, payload.SessionID, turn.Question, turn.Intent, turn.Answer, turn.Expected, facts)
+					if evalErr != nil {
+						return evalErr
+					}
+					item.eval = eval
+					item.score = score
+					item.critique = strings.Join(eval.Improvements, "；")
+					if item.critique == "" && len(eval.Dimensions) > 0 {
+						item.critique = eval.Dimensions[0].Reason
+					}
+					item.golden = eval.GoldenAnswer
+					item.evidence = eval.Evidence
+					scored[index] = item
+					return nil
+				})
+			}
+			if evalErr := group.Wait(); evalErr != nil {
+				return failReport(ctx, db, payload, "AI_GENERATION_UNAVAILABLE", "评分生成失败，请重试", evalErr)
+			}
+		} else {
+			for index, turn := range turns {
+				item := scoredTurn{turn: turn, evidence: []string{}}
 				item.score = degradedScore(turn.Answer)
 				item.critique = "当前为降级报告：未调用评分模型，仅记录作答完整性，分数不代表能力评估。"
 				item.golden = "建议按 STAR 结合已有材料重答；需要假设的内容应标为示例表达。"
 				if strings.TrimSpace(turn.Answer) != "" {
 					item.evidence = []string{"用户提交了本题回答"}
 				}
+				scored[index] = item
 			}
-			if strings.TrimSpace(turn.Answer) != "" {
+		}
+		for _, item := range scored {
+			if strings.TrimSpace(item.turn.Answer) != "" {
 				answered++
 			}
 			total += item.score
-			scored = append(scored, item)
 		}
 		overall := total / len(scored)
 		summaries := []map[string]any{}

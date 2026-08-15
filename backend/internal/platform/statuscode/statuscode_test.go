@@ -12,8 +12,8 @@ func TestMiddlewareAppliesCreatedAndSuppressesNoContentBodies(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"ok":true}`))
 	})(created, httptest.NewRequest(http.MethodPost, "/api/v1/interviews", nil))
-	if created.Code != http.StatusCreated {
-		t.Fatalf("created status = %d", created.Code)
+	if created.Code != http.StatusAccepted {
+		t.Fatalf("accepted status = %d", created.Code)
 	}
 
 	deleted := httptest.NewRecorder()

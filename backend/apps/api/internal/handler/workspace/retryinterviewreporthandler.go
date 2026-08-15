@@ -12,20 +12,21 @@ import (
 	"github.com/zeromicro/go-zero/rest/httpx"
 )
 
-func RetryTaskHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+// Retry a failed report evaluation without exposing an internal task
+func RetryInterviewReportHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req types.TaskPath
+		var req types.InterviewPath
 		if err := httpx.Parse(r, &req); err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)
 			return
 		}
 
-		l := workspace.NewRetryTaskLogic(r.Context(), svcCtx)
-		resp, err := l.RetryTask(&req)
+		l := workspace.NewRetryInterviewReportLogic(r.Context(), svcCtx)
+		resp, err := l.RetryInterviewReport(&req)
 		if err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)
 		} else {
-			httpx.OkJsonCtx(r.Context(), w, resp)
+			httpx.WriteJsonCtx(r.Context(), w, http.StatusAccepted, resp)
 		}
 	}
 }

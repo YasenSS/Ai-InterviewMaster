@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -31,13 +32,22 @@ type OpenAIConfig struct {
 // safe to share across requests because tools are attached with WithTools,
 // which returns an immutable per-request model.
 type OpenAI struct {
-	model             model.ToolCallingChatModel
-	provider          string
-	modelName         string
-	timeout           time.Duration
-	maxOutputTokens   int
-	structuredOutputs bool
+	model           model.ToolCallingChatModel
+	provider        string
+	modelName       string
+	timeout         time.Duration
+	maxOutputTokens int
+	structuredMode  structuredOutputMode
+	deepSeek        bool
 }
+
+type structuredOutputMode uint8
+
+const (
+	structuredOutputDisabled structuredOutputMode = iota
+	structuredOutputJSONSchema
+	structuredOutputJSONObject
+)
 
 // NewOpenAI constructs an OpenAI or OpenAI-compatible model through Eino.
 func NewOpenAI(ctx context.Context, cfg OpenAIConfig) (*OpenAI, error) {
@@ -67,13 +77,45 @@ func NewOpenAI(ctx context.Context, cfg OpenAIConfig) (*OpenAI, error) {
 		providerName = "openai"
 	}
 	return &OpenAI{
-		model:             component,
-		provider:          providerName,
-		modelName:         strings.TrimSpace(cfg.Model),
-		timeout:           cfg.Timeout,
-		maxOutputTokens:   cfg.MaxOutputTokens,
-		structuredOutputs: cfg.StructuredOutputs,
+		model:           component,
+		provider:        providerName,
+		modelName:       strings.TrimSpace(cfg.Model),
+		timeout:         cfg.Timeout,
+		maxOutputTokens: cfg.MaxOutputTokens,
+		structuredMode:  resolveStructuredOutputMode(providerName, cfg.StructuredOutputs),
+		deepSeek:        isDeepSeekBaseURL(cfg.BaseURL),
 	}, nil
+}
+
+func isDeepSeekBaseURL(baseURL string) bool {
+	normalized := strings.TrimSpace(baseURL)
+	if normalized == "" {
+		return false
+	}
+	if !strings.Contains(normalized, "://") {
+		normalized = "https://" + normalized
+	}
+	parsed, err := url.Parse(normalized)
+	if err != nil {
+		return false
+	}
+	host := strings.ToLower(parsed.Hostname())
+	return host == "api.deepseek.com" || strings.HasSuffix(host, ".deepseek.com")
+}
+
+func resolveStructuredOutputMode(providerName string, enabled bool) structuredOutputMode {
+	if !enabled {
+		return structuredOutputDisabled
+	}
+	// OpenAI supports strict json_schema responses. OpenAI-compatible
+	// providers do not share that extension consistently; DeepSeek, for
+	// example, exposes JSON mode as json_object. Domain JSON Schema and Go
+	// validators still run after generation, so compatibility does not weaken
+	// the server-side write boundary.
+	if strings.EqualFold(strings.TrimSpace(providerName), "openai") {
+		return structuredOutputJSONSchema
+	}
+	return structuredOutputJSONObject
 }
 
 // Generate maps the application's stable message and tool types to Eino and
@@ -100,6 +142,13 @@ func (p *OpenAI) Generate(ctx context.Context, req platformai.GenerateRequest) (
 	}
 
 	options := make([]model.Option, 0, 3)
+	extraFields := map[string]any{}
+	if p.deepSeek {
+		// DeepSeek V4 enables thinking by default. Interview preparation and
+		// per-turn routing need bounded latency more than extended reasoning;
+		// disabling thinking also keeps the 30-second application timeout useful.
+		extraFields["thinking"] = map[string]any{"type": "disabled"}
+	}
 	maxTokens := p.maxOutputTokens
 	if req.MaxTokens > 0 && req.MaxTokens < maxTokens {
 		maxTokens = req.MaxTokens
@@ -119,18 +168,22 @@ func (p *OpenAI) Generate(ctx context.Context, req platformai.GenerateRequest) (
 		if strings.TrimSpace(req.SchemaName) == "" {
 			return platformai.GenerateResponse{}, &platformai.Error{Code: platformai.ErrorInvalidRequest, Cause: errors.New("schema name is required with JSON Schema")}
 		}
-		if p.structuredOutputs {
-			options = append(options, einoopenai.WithExtraFields(map[string]any{
-				"response_format": map[string]any{
-					"type": "json_schema",
-					"json_schema": map[string]any{
-						"name":   req.SchemaName,
-						"strict": true,
-						"schema": rawSchema,
-					},
+		switch p.structuredMode {
+		case structuredOutputJSONSchema:
+			extraFields["response_format"] = map[string]any{
+				"type": "json_schema",
+				"json_schema": map[string]any{
+					"name":   req.SchemaName,
+					"strict": true,
+					"schema": rawSchema,
 				},
-			}))
+			}
+		case structuredOutputJSONObject:
+			extraFields["response_format"] = map[string]any{"type": "json_object"}
 		}
+	}
+	if len(extraFields) > 0 {
+		options = append(options, einoopenai.WithExtraFields(extraFields))
 	}
 
 	callCtx, cancel := context.WithTimeout(ctx, p.timeout)

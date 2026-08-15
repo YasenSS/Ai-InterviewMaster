@@ -135,11 +135,6 @@ type CreateResumeUploadResponse {
 	ExpiresAt     string            `json:"expires_at"`
 }
 
-type TaskAcceptedResponse {
-	TaskId string `json:"task_id"`
-	Status string `json:"status"`
-}
-
 type ResumePath {
 	Id string `path:"id"`
 }
@@ -214,6 +209,17 @@ type InterviewTurnResponse {
 	TurnKind         string `json:"turn_kind,optional"`
 	CapabilityKey    string `json:"capability_key,optional"`
 	ParentTurnId     string `json:"parent_turn_id,optional"`
+	Intent           string `json:"intent,optional"`
+	Difficulty       string `json:"difficulty,optional"`
+	GenerationMode   string `json:"generation_mode,optional"`
+}
+
+type InterviewOperationResponse {
+	Type         string `json:"type"`
+	Status       string `json:"status"`
+	ErrorCode    string `json:"error_code,optional"`
+	ErrorSummary string `json:"error_summary,optional"`
+	Retryable    bool   `json:"retryable"`
 }
 
 type InterviewSummaryResponse {
@@ -238,9 +244,13 @@ type InterviewSummaryResponse {
 
 type InterviewSessionResponse {
 	InterviewSummaryResponse
-	TaskId                  string                  `json:"task_id,optional"`
-	QuestionDurationSeconds int                     `json:"question_duration_seconds"`
-	Turns                   []InterviewTurnResponse `json:"turns"`
+	Phase                   string                      `json:"phase"`
+	AgentMode               string                      `json:"agent_mode"`
+	PolicyVersion           string                      `json:"policy_version"`
+	CompletionReason        string                      `json:"completion_reason,optional"`
+	Operation               *InterviewOperationResponse `json:"operation,optional"`
+	QuestionDurationSeconds int                         `json:"question_duration_seconds"`
+	Turns                   []InterviewTurnResponse     `json:"turns"`
 }
 
 type InterviewPath {
@@ -256,11 +266,6 @@ type SaveInterviewAnswerRequest {
 	Id      string `path:"id"`
 	Ordinal int    `path:"ordinal"`
 	Answer  string `json:"answer"`
-}
-
-type AnswerInterviewRequest {
-	Id     string `path:"id"`
-	Answer string `json:"answer"`
 }
 
 type CompleteInterviewRequest {
@@ -293,51 +298,21 @@ type TurnReportResponse {
 }
 
 type InterviewReportResponse {
-	Id            string               `json:"id"`
-	SessionId     string               `json:"session_id"`
-	Status        string               `json:"status"`
-	OverallScore  int                  `json:"overall_score"`
-	Strengths     []string             `json:"strengths"`
-	Improvements  []string             `json:"improvements"`
-	NextSteps     []string             `json:"next_steps"`
-	QualityPassed bool                 `json:"quality_passed"`
-	Degraded      bool                 `json:"degraded"`
-	ErrorCode     string               `json:"error_code,optional"`
-	ErrorSummary  string               `json:"error_summary,optional"`
-	TaskId        string               `json:"task_id,optional"`
-	Turns         []TurnReportResponse `json:"turns"`
-	CreatedAt     string               `json:"created_at"`
-	UpdatedAt     string               `json:"updated_at"`
-}
-
-type TaskPath {
-	Id string `path:"id"`
-}
-
-type TaskReferenceResponse {
-	Type  string `json:"type"`
-	Id    string `json:"id"`
-	Title string `json:"title,optional"`
-}
-
-type TaskErrorResponse {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
-
-type TaskResponse {
-	Id            string                `json:"id"`
-	Type          string                `json:"type"`
-	Status        string                `json:"status"`
-	Progress      int                   `json:"progress"`
-	Reference     TaskReferenceResponse `json:"reference"`
-	Error         *TaskErrorResponse    `json:"error,optional"`
-	Result        interface{}           `json:"result,optional"`
-	RetryOfTaskId string                `json:"retry_of_task_id,optional"`
-	CreatedAt     string                `json:"created_at"`
-	UpdatedAt     string                `json:"updated_at"`
-	StartedAt     string                `json:"started_at,optional"`
-	CompletedAt   string                `json:"completed_at,optional"`
+	Id            string                      `json:"id"`
+	SessionId     string                      `json:"session_id"`
+	Status        string                      `json:"status"`
+	OverallScore  int                         `json:"overall_score"`
+	Strengths     []string                    `json:"strengths"`
+	Improvements  []string                    `json:"improvements"`
+	NextSteps     []string                    `json:"next_steps"`
+	QualityPassed bool                        `json:"quality_passed"`
+	Degraded      bool                        `json:"degraded"`
+	ErrorCode     string                      `json:"error_code,optional"`
+	ErrorSummary  string                      `json:"error_summary,optional"`
+	Operation     *InterviewOperationResponse `json:"operation,optional"`
+	Turns         []TurnReportResponse        `json:"turns"`
+	CreatedAt     string                      `json:"created_at"`
+	UpdatedAt     string                      `json:"updated_at"`
 }
 
 type DashboardCountsResponse {
@@ -481,7 +456,7 @@ service InterviewMaster {
 
 	@doc "Complete a resume upload and enqueue parsing"
 	@handler CompleteResumeUpload
-	post /resumes/:id/versions/:versionId/complete (CompleteResumeUploadRequest) returns (TaskAcceptedResponse)
+	post /resumes/:id/versions/:versionId/complete (CompleteResumeUploadRequest) returns (ResumeDetailResponse)
 
 	@doc "List resumes with pagination and filtering"
 	@handler ListResumes
@@ -501,7 +476,7 @@ service InterviewMaster {
 
 	@doc "Reparse the current resume version"
 	@handler ReparseResume
-	post /resumes/:id/reparse (ResumePath) returns (TaskAcceptedResponse)
+	post /resumes/:id/reparse (ResumePath) returns (ResumeDetailResponse)
 
 	@doc "Prepare an interview from a resume, language and target company"
 	@handler CreateInterview
@@ -523,25 +498,29 @@ service InterviewMaster {
 	@handler SkipInterviewTurn
 	post /interviews/:id/turns/:ordinal/skip (InterviewTurnPath) returns (InterviewSessionResponse)
 
+	@doc "Retry a failed interview preparation without exposing an internal task"
+	@handler RetryInterviewPreparation
+	post /interviews/:id/preparation/retry (InterviewPath) returns (InterviewSessionResponse)
+
+	@doc "Retry the failed decision for the current answered turn"
+	@handler RetryInterviewDecision
+	post /interviews/:id/next-turn/retry (InterviewPath) returns (InterviewSessionResponse)
+
+	@doc "Continue a failed decision with an explicitly marked fallback question"
+	@handler FallbackInterviewDecision
+	post /interviews/:id/next-turn/fallback (InterviewPath) returns (InterviewSessionResponse)
+
 	@doc "Complete and lock an interview"
 	@handler CompleteInterview
 	post /interviews/:id/complete (CompleteInterviewRequest) returns (InterviewSessionResponse)
-
-	@doc "Deprecated: use PUT /interviews/:id/turns/:ordinal/answer"
-	@handler AnswerInterview
-	post /interviews/:id/answer (AnswerInterviewRequest) returns (InterviewSessionResponse)
 
 	@doc "Return or generate the unique interview report"
 	@handler GetInterviewReport
 	get /interviews/:id/report (InterviewPath) returns (InterviewReportResponse)
 
-	@doc "Return asynchronous task state"
-	@handler GetTask
-	get /tasks/:id (TaskPath) returns (TaskResponse)
-
-	@doc "Retry a supported failed task"
-	@handler RetryTask
-	post /tasks/:id/retry (TaskPath) returns (TaskAcceptedResponse)
+	@doc "Retry a failed report evaluation without exposing an internal task"
+	@handler RetryInterviewReport
+	post /interviews/:id/report/retry (InterviewPath) returns (InterviewReportResponse)
 
 	@doc "Return the authenticated user's dashboard aggregates"
 	@handler DashboardSummary
