@@ -39,6 +39,14 @@ cd backend; go run -buildvcs=false ./apps/worker -f apps/worker/etc/worker.yaml
 pnpm --dir web dev
 ```
 
+只想看前端页面、不启动后端时，用 Mock 环境（端口 **3001**，与正式开发的 3000 分开）：
+
+```powershell
+pnpm mock:web
+```
+
+任意邮箱和密码都可以登录。右上角会显示 Mock 标识。
+
 也可以启动完整应用容器：
 
 ```powershell
