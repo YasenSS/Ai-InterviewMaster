@@ -154,6 +154,7 @@ button:disabled { cursor: not-allowed; opacity: .52; }
 .toast span { flex: 1; }
 .toast button { display: grid; width: 32px; height: 32px; place-items: center; border: 0; background: transparent; }
 .offline-banner { position: fixed; z-index: 120; top: 0; left: 50%; display: flex; min-height: 40px; align-items: center; gap: 8px; border-radius: 0 0 9px 9px; padding: 0 16px; color: var(--brand-contrast); background: var(--danger); transform: translateX(-50%); font-size: 13px; }
+.mock-banner { position: fixed; z-index: 90; top: 10px; right: 16px; border: 1px solid color-mix(in srgb,var(--warning) 45%,var(--border)); border-radius: 999px; padding: 8px 14px; color: var(--warning); background: var(--warning-soft); box-shadow: var(--shadow); font-size: 12px; font-weight: 700; }
 .dialog-overlay { position: fixed; z-index: 200; inset: 0; background: var(--overlay); animation: fadeIn .15s; }
 .dialog-content { position: fixed; z-index: 201; top: 50%; left: 50%; width: min(500px,calc(100% - 28px)); border: 1px solid var(--border); border-radius: 16px; padding: 24px; background: var(--surface-raised); box-shadow: var(--shadow); transform: translate(-50%,-50%); }
 .dialog-content h2 { margin: 0 38px 6px 0; }
@@ -561,6 +562,7 @@ button:disabled { cursor: not-allowed; opacity: .52; }
   .composer-toolbar .button-row > * { flex: 1; }
   .toast-region { right: 10px; bottom: 78px; left: 10px; }
   .toast { min-width: 0; }
+  .mock-banner { top: auto; right: 12px; bottom: 78px; }
   .dialog-content { top: auto; bottom: 0; left: 0; width: 100%; border-radius: 18px 18px 0 0; padding-bottom: max(24px,env(safe-area-inset-bottom)); transform: none; }
 }
 
@@ -572,7 +574,7 @@ button:disabled { cursor: not-allowed; opacity: .52; }
 
 @media print {
   :root, [data-theme="dark"] { --background: #fff; --surface: #fff; --surface-subtle: #f4f4f4; --text: #111; --text-muted: #555; --border: #ddd; }
-  .sidebar, .mobile-header, .bottom-nav, .no-print, .toast-region, .offline-banner { display: none !important; }
+  .sidebar, .mobile-header, .bottom-nav, .no-print, .toast-region, .offline-banner, .mock-banner { display: none !important; }
   .product-shell { padding: 0; }
   .page { width: 100%; padding: 0; }
   .page-header { margin-bottom: 16px; }

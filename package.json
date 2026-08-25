@@ -4,6 +4,7 @@
   "packageManager": "pnpm@11.9.0",
   "scripts": {
     "dev:web": "pnpm --dir web dev",
+    "mock:web": "pnpm --dir web mock",
     "build:web": "pnpm --dir web build",
     "lint:web": "pnpm --dir web lint",
     "typecheck:web": "pnpm --dir web typecheck",

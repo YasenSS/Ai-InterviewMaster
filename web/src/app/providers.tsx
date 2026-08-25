@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { useState, type ReactNode } from "react";
 
+import { MockBanner } from "@/components/feedback/MockBanner";
 import { ToastProvider } from "@/components/feedback/Toast";
 
 export function Providers({ children }: { children: ReactNode }) {
@@ -20,6 +21,7 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <ThemeProvider attribute="data-theme" defaultTheme="system" enableSystem disableTransitionOnChange>
       <QueryClientProvider client={queryClient}>
+        <MockBanner />
         <ToastProvider>{children}</ToastProvider>
       </QueryClientProvider>
     </ThemeProvider>

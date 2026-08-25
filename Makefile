@@ -3,13 +3,14 @@ SQLC_VERSION := v1.31.1
 GOOSE_VERSION := v3.27.1
 API_FILE := backend/api/interviewmaster.api
 
-.PHONY: help bootstrap generate generate-api generate-sql fmt lint test build web-install web-check infra-up infra-down migrate migrate-status check
+.PHONY: help bootstrap generate generate-api generate-sql fmt lint test build web-install mock-web web-check infra-up infra-down migrate migrate-status check
 
 help:
 	@echo "InterviewMaster development commands"
 	@echo "  make bootstrap     Install dependencies and generate code"
 	@echo "  make generate      Generate Go/TypeScript API code and sqlc queries"
 	@echo "  make check         Format, lint, test, and build the project"
+	@echo "  make mock-web      Start the frontend against in-memory mock APIs (port 3001)"
 	@echo "  make infra-up      Start PostgreSQL, Redis, MinIO, and Tika"
 	@echo "  make migrate       Apply PostgreSQL migrations"
 
@@ -47,6 +48,9 @@ build:
 
 web-install:
 	pnpm install
+
+mock-web:
+	pnpm --dir web mock
 
 web-check:
 	pnpm --dir web lint
