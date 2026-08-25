@@ -14,6 +14,25 @@ export function draftKey(userId: string, interviewId: string, ordinal: number) {
   return `im_draft:${userId}:${interviewId}:${ordinal}`;
 }
 
+export function isFollowUpTurn(turn: { turn_kind?: string }) {
+  return turn.turn_kind === "follow_up";
+}
+
+export function visibleInterviewTurns<T extends { question?: string; ordinal: number }>(
+  turns: T[],
+  currentOrdinal: number,
+) {
+  return turns.filter((turn) => Boolean(turn.question) && turn.ordinal <= currentOrdinal);
+}
+
+export function shouldCollapseChatText(text: string, collapseAfter = 360) {
+  return text.length > collapseAfter || text.split("\n").length > 8;
+}
+
+export function isLiveInterviewRoomPath(pathname: string) {
+  return /^\/interviews\/[^/]+$/.test(pathname) && pathname !== "/interviews/new" && pathname !== "/interviews/records";
+}
+
 export function clearInterviewDrafts() {
   if (typeof window === "undefined") return;
   const keys = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index))
