@@ -15,6 +15,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { OfflineBanner } from "@/components/feedback/States";
 import { useAuth } from "@/features/auth/AuthGate";
+import { isLiveInterviewRoomPath } from "@/shared/lib/interview";
 import { cn } from "@/shared/lib/utils";
 
 const primaryNav = [
@@ -53,6 +54,7 @@ export function ProductShell({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const isLiveInterviewRoom = isLiveInterviewRoomPath(pathname);
   const isCurrent = (href: string) => {
     if (href === "/interviews/records" && /^\/interviews\/[^/]+\/(record|report)$/.test(pathname)) return true;
     return pathname === href || pathname.startsWith(`${href}/`);
@@ -70,7 +72,7 @@ export function ProductShell({ children }: { children: ReactNode }) {
     ));
 
   return (
-    <div className="product-shell">
+    <div className={cn("product-shell", isLiveInterviewRoom && "interview-session-shell")}>
       {!online ? <OfflineBanner /> : null}
       <aside className="sidebar">
         <Link className="product-brand" href="/dashboard">
@@ -93,28 +95,32 @@ export function ProductShell({ children }: { children: ReactNode }) {
           </span>
         </div>
       </aside>
-      <header className="mobile-header">
-        <Link className="product-brand" href="/dashboard">
-          <span className="logo-mark">IM</span> InterviewMaster
-        </Link>
-        <button aria-label="打开更多导航" onClick={() => setMobileMenu((value) => !value)}>
-          <Menu />
-        </button>
-        {mobileMenu ? (
-          <div className="mobile-menu">
-            <Link href="/settings" onClick={() => setMobileMenu(false)}>设置</Link>
-          </div>
-        ) : null}
-      </header>
-      <main className="product-main">{children}</main>
-      <nav className="bottom-nav" aria-label="移动端主导航">
-        {mobileNav.map(({ href, label, icon: Icon }) => (
-          <Link key={href} href={href} className={cn(isCurrent(href) && "is-active")}>
-            <Icon size={21} aria-hidden="true" />
-            <span>{label}</span>
+      {!isLiveInterviewRoom ? (
+        <header className="mobile-header">
+          <Link className="product-brand" href="/dashboard">
+            <span className="logo-mark">IM</span> InterviewMaster
           </Link>
-        ))}
-      </nav>
+          <button aria-label="打开更多导航" onClick={() => setMobileMenu((value) => !value)}>
+            <Menu />
+          </button>
+          {mobileMenu ? (
+            <div className="mobile-menu">
+              <Link href="/settings" onClick={() => setMobileMenu(false)}>设置</Link>
+            </div>
+          ) : null}
+        </header>
+      ) : null}
+      <main className="product-main">{children}</main>
+      {!isLiveInterviewRoom ? (
+        <nav className="bottom-nav" aria-label="移动端主导航">
+          {mobileNav.map(({ href, label, icon: Icon }) => (
+            <Link key={href} href={href} className={cn(isCurrent(href) && "is-active")}>
+              <Icon size={21} aria-hidden="true" />
+              <span>{label}</span>
+            </Link>
+          ))}
+        </nav>
+      ) : null}
     </div>
   );
 }
