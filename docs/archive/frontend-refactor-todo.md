@@ -1,6 +1,7 @@
 # InterviewMaster 前端重构 TODO
 
-> 文档状态：待开发  
+> **已归档（2026-08-28）。** 文内「待开发」已过时。现行任务见 [`../邀请制todo_0828.md`](../邀请制todo_0828.md)。
+> 文档状态（写作时）：待开发  
 > 更新时间：2026-07-29  
 > 需求基线：[`frontend-refactor-requirements.md`](./frontend-refactor-requirements.md)  
 > 后端契约：[`backend-refactor-todo.md`](./backend-refactor-todo.md)  

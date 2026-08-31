@@ -1,6 +1,7 @@
 # InterviewMaster 后端重构 TODO 与 API 契约
 
-> 文档状态：P0/P1 已完成并通过验收
+> **已归档（2026-08-28）。** 07-29 契约草稿；现行 API 以仓库内 `backend/api/interviewmaster.api` 为准。
+> 文档状态（写作时）：P0/P1 已完成并通过验收
 > 更新时间：2026-07-29  
 > 需求基线：[`frontend-refactor-requirements.md`](./frontend-refactor-requirements.md)  
 > 前端任务：[`frontend-refactor-todo.md`](./frontend-refactor-todo.md)  
