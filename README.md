@@ -12,7 +12,7 @@
 - 前端：Next.js App Router、React、TypeScript、pnpm。
 - 契约：`backend/api/interviewmaster.api` 是 HTTP API 单一事实来源；Go handler、OpenAPI 和 TypeScript SDK 均从它生成。
 
-完整设计见 [技术方案_v1.md](docs/技术方案_v1.md)，本轮产品调整记录见 [上线重构_0814.md](docs/上线重构_0814.md)。
+文档目录见 [docs/README.md](docs/README.md)。工程栈见 [技术方案_v1.md](docs/技术方案_v1.md)，产品主线见 [上线重构_0814.md](docs/上线重构_0814.md)，邀请制剩余项见 [邀请制todo_0828.md](docs/邀请制todo_0828.md)。
 
 ## 本地启动
 
@@ -79,7 +79,7 @@ pnpm install
 ```text
 backend/              Go API、Worker、迁移和 SQL 查询
 web/                  Next.js 前端
-docs/                 产品、架构、部署与本轮上线重构文档
+docs/                 现行文档与 archive/ 历史稿；入口 docs/README.md
 scripts/              Windows 本地开发脚本
 docker-compose.yml    本地依赖及可选完整应用编排
 ```

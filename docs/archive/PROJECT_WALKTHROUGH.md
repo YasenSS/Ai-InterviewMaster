@@ -1,5 +1,6 @@
 # InterviewMaster 项目通读
 
+> **已归档（2026-08-28）。** 2026-08-06 通读，主流程仍按 JD/题集。现行产品边界见 [`../上线重构_0814.md`](../上线重构_0814.md)。
 > 由 project-walkthrough 生成 — 2026-08-06
 
 ## 目录
@@ -110,7 +111,7 @@ interviews/[id]/report → report → getinterviewreportlogic
 | Dashboard / 探活 | 聚合摘要；health/ready | `dashboard` / `system` |
 | Beta 面经 / ASR | 本地降级情报；Whisper 转写 | `/beta/*`，Worker `asr` |
 
-边界：出题/评分/面经多为 stub；真外部智能为 Tika 与 Whisper。对照 `docs/验收清单.md`。
+边界：出题/评分/面经多为 stub；真外部智能为 Tika 与 Whisper。对照（历史）[`验收清单.md`](验收清单.md)。
 
 ## 6. 难点
 
