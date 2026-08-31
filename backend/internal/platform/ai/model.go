@@ -2,7 +2,7 @@
 //
 // 领域层（apps/*/internal/logic）只依赖本包定义的自研接口，
 // 不直接 import Eino 或任何模型供应商 SDK；Eino 仅作为本包内部实现，
-// 保证业务可替换、可测试、可审计。见 docs/agent设计.md。
+// 保证业务可替换、可测试、可审计。见 docs/ch/agent设计.md。
 package ai
 
 import "context"

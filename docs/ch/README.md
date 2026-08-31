@@ -1,5 +1,7 @@
 # docs 文档地图
 
+> English index: [docs/en/README.md](../en/README.md)
+
 > 整理日期：2026-08-28。先看本页再打开具体文档，避免把归档清单当当前任务。
 
 当前执行清单是 [`邀请制todo_0828.md`](邀请制todo_0828.md)。智能层设计看 [`agent设计.md`](agent设计.md)，本地怎么跑看 [`本地启动.md`](本地启动.md)。
@@ -8,19 +10,22 @@
 
 | 文档 | 用途 | 注意 |
 | --- | --- | --- |
-| [`邀请制todo_0828.md`](邀请制todo_0828.md) | 邀请制上线还剩什么 | **唯一执行清单**；不要再往 `上线TODO.md` / `agent_todo.md` 加新任务 |
+| [`邀请制todo_0828.md`](邀请制todo_0828.md) | 邀请制上线还剩什么 | **唯一执行清单**；不要再往 `archive/上线TODO.md` / `archive/agent_todo.md` 加新任务 |
 | [`agent设计.md`](agent设计.md) | 智能层原则、边界、状态机 | 设计源；不要在这里堆实施勾选 |
-| [`Agent架构与接口改造_TODO_0814.md`](Agent架构与接口改造_TODO_0814.md) | Agent V2 接口、迁移、Worker 改造说明 | **主体已落地**（库表 v10、`interview:next_turn`、聊天室）。文内大量 `[ ]` 未回写，剩余项以邀请制 TODO 为准 |
 | [`上线重构_0814.md`](上线重构_0814.md) | 产品主线：无 JD/题集管理，面试是用户单位 | 产品边界仍有效 |
-| [`技术方案_v1.md`](技术方案_v1.md) | 工程栈与仓库结构 | 2026-07-18 基线；产品流程已被 0814 覆盖，栈（Go / Next / PG / Redis / MinIO）仍准 |
 | [`本地启动.md`](本地启动.md) | 本机 Compose、迁移、API/Worker/Web | 2026-08-15 在 Windows 验证过 |
 | [`runbooks/ai.md`](runbooks/ai.md) | 模型故障排查、降级、`IM_AI_ENABLED` | 运维入口 |
 
-根目录 [`README.md`](../README.md) 只保留产品一句话、栈和最短启动命令；细节以本目录为准。
+根目录 [`README.md`](../../README.md) 只保留产品一句话、栈和最短启动命令；细节以本目录为准。
 
 ## 已归档（`archive/`）
 
 过期任务清单、旧产品化 TODO、OceanBase / 多微服务草稿。完整说明见 [`archive/README.md`](archive/README.md)。
+
+本轮已归档：
+
+- [`archive/技术方案_v1.md`](archive/技术方案_v1.md)：历史工程基线，不能作为当前产品方案。
+- [`archive/Agent架构与接口改造_TODO_0814.md`](archive/Agent架构与接口改造_TODO_0814.md)：V2 实施记录，不能作为当前任务清单。
 
 不要按这些文件排期或验收。需要对照「当时怎么想的」时再打开。
 

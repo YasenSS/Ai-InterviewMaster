@@ -6,7 +6,7 @@
 //     出题、面试官追问、评分、报告等业务编排在 logic 方法内，
 //     通过 svcCtx 注入的 ChatModel 调用本包，不感知 Eino/供应商。
 //
-// 文件规划（逐步落地，见 docs/agent设计.md §8/§9）：
+// 文件规划（逐步落地，见 docs/ch/agent设计.md §8/§9）：
 //   - model.go            ChatModel / EmbeddingModel / Tool / Message 等自研接口（已建）
 //   - provider/openai.go  OpenAI 兼容 Provider（已建，基于 Eino）
 //   - structured.go       生成→JSON Schema→严格解码→领域校验，失败修复一次
