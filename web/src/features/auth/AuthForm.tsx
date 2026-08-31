@@ -27,6 +27,7 @@ const registerSchema = z
     email: z.email("请输入有效的邮箱地址"),
     password: z.string().min(8, "密码至少 8 个字符").max(72, "密码不能超过 72 个字符"),
     confirmPassword: z.string(),
+    inviteCode: z.string().trim().min(1, "请输入邀请码").max(128, "邀请码不能超过 128 个字符"),
   })
   .refine((value) => value.password === value.confirmPassword, {
     message: "两次输入的密码不一致",
@@ -50,6 +51,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           display_name: values.displayName,
           email: values.email,
           password: values.password,
+          invite_code: values.inviteCode,
         });
       }
       return api.login(values);
@@ -65,6 +67,9 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
       if (!isLogin && (appError.code.includes("EMAIL") || fields?.email)) {
         registerForm.setError("email", { message: "该邮箱已被使用，请直接登录或更换邮箱。" }, { shouldFocus: true });
       }
+      if (!isLogin && (appError.code === "INVITE_CODE_INVALID" || fields?.invite_code)) {
+        registerForm.setError("inviteCode", { message: "邀请码无效或已失效。" }, { shouldFocus: true });
+      }
     },
   });
 
@@ -79,7 +84,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
       <main className="auth-main">
         <div className="auth-card">
           <Link className="back-link" href="/"><ArrowLeft size={17} /> 返回官网</Link>
-          <div className="auth-heading"><p className="eyebrow">{isLogin ? "欢迎回来" : "开始第一轮训练"}</p><h1>{isLogin ? "登录 InterviewMaster" : "创建你的账户"}</h1><p>{isLogin ? "继续未完成的训练，或开始新一轮模拟面试。" : "注册后从上传简历开始，逐步完成一次可复盘的模拟面试。"}</p></div>
+          <div className="auth-heading"><p className="eyebrow">{isLogin ? "欢迎回来" : "邀请制内测"}</p><h1>{isLogin ? "登录 InterviewMaster" : "使用邀请码创建账户"}</h1><p>{isLogin ? "继续未完成的训练，或开始新一轮模拟面试。" : "输入受邀邀请码后注册，从上传简历开始完成一次可复盘的模拟面试。"}</p></div>
           {appError && !(!isLogin && appError.code.includes("EMAIL")) ? <Alert title={isLogin && appError.status === 401 ? "邮箱或密码不正确" : appError.message} tone="danger">{appError.requestId ? `请求 ID：${appError.requestId}` : null}</Alert> : null}
           {isLogin ? (
             <form className="form-stack" onSubmit={loginForm.handleSubmit((values) => mutation.mutate(values))} noValidate>
@@ -91,12 +96,13 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             <form className="form-stack" onSubmit={registerForm.handleSubmit((values) => mutation.mutate(values))} noValidate>
               <FormField label="显示名称" htmlFor="displayName" error={registerForm.formState.errors.displayName?.message}><Input id="displayName" autoComplete="name" {...registerForm.register("displayName")} /></FormField>
               <FormField label="邮箱" htmlFor="email" error={registerForm.formState.errors.email?.message}><Input id="email" type="email" autoComplete="email" {...registerForm.register("email")} /></FormField>
+              <FormField label="邀请码" hint="请向邀请人获取" htmlFor="inviteCode" error={registerForm.formState.errors.inviteCode?.message}><Input id="inviteCode" autoComplete="one-time-code" aria-invalid={Boolean(registerForm.formState.errors.inviteCode)} {...registerForm.register("inviteCode")} /></FormField>
               <FormField label="密码" hint="至少 8 个字符" htmlFor="password" error={registerForm.formState.errors.password?.message}><PasswordInput id="password" autoComplete="new-password" {...registerForm.register("password")} /></FormField>
               <FormField label="确认密码" htmlFor="confirmPassword" error={registerForm.formState.errors.confirmPassword?.message}><PasswordInput id="confirmPassword" autoComplete="new-password" {...registerForm.register("confirmPassword")} /></FormField>
-              <Button type="submit" loading={mutation.isPending}>免费注册</Button>
+              <Button type="submit" loading={mutation.isPending}>注册</Button>
             </form>
           )}
-          <p className="auth-switch">{isLogin ? "还没有账户？" : "已经有账户？"} <Link href={isLogin ? "/register" : "/login"}>{isLogin ? "免费注册" : "直接登录"}</Link></p>
+          <p className="auth-switch">{isLogin ? "还没有账户？" : "已经有账户？"} <Link href={isLogin ? "/register" : "/login"}>{isLogin ? "使用邀请码注册" : "直接登录"}</Link></p>
         </div>
       </main>
     </div>

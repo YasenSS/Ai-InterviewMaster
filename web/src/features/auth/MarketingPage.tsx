@@ -21,7 +21,7 @@ export function MarketingPage() {
       <header className="marketing-nav">
         <Link className="product-brand" href="/"><span className="logo-mark">IM</span><span>InterviewMaster<small>AI 面试训练助手</small></span></Link>
         <nav aria-label="官网导航"><a href="#features">核心能力</a><a href="#process">使用流程</a></nav>
-        <div className="marketing-actions"><Link href="/login">登录</Link><Link className="button button-primary button-md" href="/register">免费开始</Link></div>
+        <div className="marketing-actions"><Link href="/login">登录</Link><Link className="button button-primary button-md" href="/register">邀请码注册</Link></div>
       </header>
       <main>
         <section className="marketing-hero">
@@ -29,8 +29,8 @@ export function MarketingPage() {
             <p className="eyebrow"><Sparkles size={15} /> 基于真实经历的动态面试</p>
             <h1>从你的简历出发，完成一场会追问、能复盘的<span>AI 模拟面试。</span></h1>
             <p className="hero-lede">选择主技术语言和目标公司，立即进入后端开发面试。面试官会沿着你的回答持续深挖，而不是机械地念完固定问题。</p>
-            <div className="hero-actions"><Link className="button button-primary button-lg" href="/register">免费开始训练<ArrowRight size={18} /></Link><a className="button button-secondary button-lg" href="#process">了解如何使用</a></div>
-            <p className="hero-note">无需信用卡 · 支持 PDF、DOCX 和 TXT 简历</p>
+            <div className="hero-actions"><Link className="button button-primary button-lg" href="/register">使用邀请码注册<ArrowRight size={18} /></Link><a className="button button-secondary button-lg" href="#process">了解如何使用</a></div>
+            <p className="hero-note">邀请制内测 · 支持 PDF、DOCX 和 TXT 简历</p>
           </div>
           <div className="hero-demo" aria-label="产品界面示意">
             <div className="demo-top"><span /><span /><span /><small>模拟面试 · 第 3 轮</small></div>
@@ -58,9 +58,9 @@ export function MarketingPage() {
           <article><p className="eyebrow">应届求职</p><h2>第一次面对正式面试，也能提前建立清晰的表达框架。</h2></article>
           <article><p className="eyebrow">社招进阶</p><h2>让模型沿着项目细节持续追问，发现经历中还没有讲透的部分。</h2></article>
         </section>
-        <section className="final-cta"><h2>让下一次面试，从一次真正有来有回的练习开始。</h2><p>上传简历，选择技术语言和目标公司，开始第一场 AI 模拟面试。</p><Link className="button button-primary button-lg" href="/register">免费开始<ArrowRight size={18} /></Link></section>
+        <section className="final-cta"><h2>让下一次面试，从一次真正有来有回的练习开始。</h2><p>输入邀请码，上传简历，选择技术语言和目标公司，开始第一场 AI 模拟面试。</p><Link className="button button-primary button-lg" href="/register">邀请码注册<ArrowRight size={18} /></Link></section>
       </main>
-      <footer className="marketing-footer"><Link className="product-brand" href="/"><span className="logo-mark">IM</span>InterviewMaster</Link><p>© 2026 InterviewMaster · AI 面试训练助手</p><div><Link href="/privacy">隐私说明</Link><Link href="/login">登录</Link><Link href="/register">注册</Link></div></footer>
+      <footer className="marketing-footer"><Link className="product-brand" href="/"><span className="logo-mark">IM</span>InterviewMaster</Link><p>© 2026 InterviewMaster · AI 面试训练助手</p><div><Link href="/privacy">隐私说明</Link><Link href="/login">登录</Link><Link href="/register">邀请码注册</Link></div></footer>
     </div>
   );
 }

@@ -268,6 +268,7 @@ type RegisterRequest struct {
 	Email       string `json:"email"`
 	Password    string `json:"password"`
 	DisplayName string `json:"display_name"`
+	InviteCode  string `json:"invite_code"`
 }
 
 type ResumeDetailResponse struct {
