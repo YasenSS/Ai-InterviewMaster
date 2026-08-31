@@ -85,6 +85,9 @@ export async function handleMockApi(request: Request, segments: string[]) {
   }
   if (method === "POST" && path === "/v1/auth/register") {
     const email = String(body.email ?? "").trim().toLowerCase();
+    if (!String(body.invite_code ?? "").trim()) {
+      return apiError(403, "INVITE_CODE_INVALID", "邀请码无效或已失效。", { invite_code: ["请输入邀请码"] });
+    }
     if (store.users.some((item) => item.email === email)) {
       return apiError(409, "EMAIL_TAKEN", "该邮箱已被使用，请直接登录或更换邮箱。", { email: ["该邮箱已被使用"] });
     }

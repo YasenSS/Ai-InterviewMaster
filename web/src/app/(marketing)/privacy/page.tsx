@@ -10,12 +10,12 @@ export default function PrivacyPage() {
     <div className="marketing">
       <header className="marketing-nav">
         <Link className="product-brand" href="/"><span className="logo-mark">IM</span><span>InterviewMaster<small>AI 面试训练助手</small></span></Link>
-        <div className="marketing-actions"><Link href="/login">登录</Link><Link className="button button-primary button-md" href="/register">免费开始</Link></div>
+        <div className="marketing-actions"><Link href="/login">登录</Link><Link className="button button-primary button-md" href="/register">邀请码注册</Link></div>
       </header>
       <main className="page narrow-page" style={{ padding: "48px 20px 80px" }}>
         <p className="eyebrow">法律与合规</p>
         <h1>隐私说明</h1>
-        <p>InterviewMaster 用你的简历、职位描述和面试回答生成训练题目、追问和复盘报告。这些材料会发送给已配置的模型供应商处理，用于完成你发起的任务，而不是用于公开展示。</p>
+        <p>InterviewMaster 用你的简历、面试配置和面试回答生成训练题目、追问和复盘报告。这些材料会发送给已配置的模型供应商处理，用于完成你发起的任务，而不是用于公开展示。</p>
         <h2>我们处理的数据</h2>
         <ul>
           <li>账户资料：邮箱、显示名称、密码哈希。</li>

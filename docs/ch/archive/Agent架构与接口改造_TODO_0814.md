@@ -3,7 +3,7 @@
 > 日期：2026-08-14
 > 设计依据：`agent设计.md`
 > 当前基线（写作时）：数据库 v9、现有 Interview API、`question:generate` / `report:generate` Worker
-> 2026-08-28 状态：V2 主体已落地（库表 v10、`interview:prepare` / `interview:next_turn`、面试间 UI）。文内大量 `[ ]` **未回写**，不要当未做清单。邀请制剩余项见 [`邀请制todo_0828.md`](邀请制todo_0828.md)。
+> **已归档，仅作历史实施记录，不作为当前任务清单。** 2026-08-28 状态：V2 主体已落地（库表 v10、`interview:prepare` / `interview:next_turn`、面试间 UI）。当前邀请制执行清单见 [`../邀请制todo_0828.md`](../邀请制todo_0828.md)。
 > 目标：把“固定候选题 + AI 追问插件”改造成“蓝图状态机 + 每轮实时生成下一问”
 
 ---
@@ -14,7 +14,7 @@
 
 - `agent设计.md` 定义目标原则和产品行为。
 - 本文件定义接口怎样演进、任务怎样拆分；写作时的实施勾选已过时。
-- [`archive/agent_todo.md`](archive/agent_todo.md) 是更早的基础设施清单，不再作为主循环验收依据。
+- [`agent_todo.md`](agent_todo.md) 是更早的基础设施清单，不再作为主循环验收依据。
 - 现行 HTTP 契约以 `backend/api/interviewmaster.api` 为准。
 
 ### 状态标记

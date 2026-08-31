@@ -1,5 +1,6 @@
 param(
-    [string]$BaseUrl = "http://localhost:8080"
+    [string]$BaseUrl = "http://localhost:8080",
+    [string]$InviteCode = "LOCAL-CHANGE-ME"
 )
 
 $ErrorActionPreference = "Stop"
@@ -112,6 +113,7 @@ $registerA = Invoke-Api $accountA.Client "POST" "/api/v1/auth/register" @{
     email        = "backend-e2e-a-$runId@example.com"
     password     = $password
     display_name = "Backend E2E A"
+    invite_code  = $InviteCode
 } $null
 Assert-Status $registerA 201 "register A"
 $tokenA = $registerA.Data.access_token
@@ -120,6 +122,7 @@ $registerB = Invoke-Api $accountB.Client "POST" "/api/v1/auth/register" @{
     email        = "backend-e2e-b-$runId@example.com"
     password     = $password
     display_name = "Backend E2E B"
+    invite_code  = $InviteCode
 } $null
 Assert-Status $registerB 201 "register B"
 $tokenB = $registerB.Data.access_token

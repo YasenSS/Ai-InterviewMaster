@@ -23,7 +23,7 @@ export type CreateInterviewInput = {
 export const api = {
   login: (body: { email: string; password: string }) =>
     apiRequest<AuthResponse>("/api/v1/auth/login", { method: "POST", body: JSON.stringify(body), skipRefresh: true }),
-  register: (body: { email: string; password: string; display_name: string }) =>
+  register: (body: { email: string; password: string; display_name: string; invite_code: string }) =>
     apiRequest<AuthResponse>("/api/v1/auth/register", {
       method: "POST",
       body: JSON.stringify(body),

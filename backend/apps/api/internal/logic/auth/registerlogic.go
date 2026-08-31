@@ -2,6 +2,8 @@ package auth
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"net/http"
 	"strings"
@@ -9,6 +11,7 @@ import (
 	"github.com/interviewmaster/interviewmaster/backend/apps/api/internal/svc"
 	"github.com/interviewmaster/interviewmaster/backend/apps/api/internal/types"
 	"github.com/interviewmaster/interviewmaster/backend/internal/platform/apperror"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/zeromicro/go-zero/core/logx"
 	"golang.org/x/crypto/bcrypt"
@@ -39,6 +42,7 @@ func (l *RegisterLogic) Register(req *types.RegisterRequest) (*types.AuthRespons
 func (l *RegisterLogic) RegisterWithSession(req *types.RegisterRequest) (*sessionResult, error) {
 	email, emailOK := normalizeEmail(req.Email)
 	displayName, nameOK := validateDisplayName(req.DisplayName)
+	inviteCode, inviteOK := normalizeInviteCode(req.InviteCode)
 	fields := make(map[string][]string)
 	if !emailOK {
 		fields["email"] = []string{"请输入合法邮箱，且长度不超过 254 个字符"}
@@ -48,6 +52,9 @@ func (l *RegisterLogic) RegisterWithSession(req *types.RegisterRequest) (*sessio
 	}
 	if !nameOK {
 		fields["display_name"] = []string{"显示名称长度必须为 1–80 个字符"}
+	}
+	if !inviteOK {
+		fields["invite_code"] = []string{"请输入有效的邀请码"}
 	}
 	if len(fields) > 0 {
 		return nil, apperror.Validation(fields)
@@ -62,6 +69,9 @@ func (l *RegisterLogic) RegisterWithSession(req *types.RegisterRequest) (*sessio
 		return nil, err
 	}
 	defer tx.Rollback(l.ctx)
+	if err := consumeInviteCode(l.ctx, tx, inviteCode, email); err != nil {
+		return nil, err
+	}
 
 	var user types.UserResponse
 	err = tx.QueryRow(l.ctx, `
@@ -95,4 +105,35 @@ func (l *RegisterLogic) RegisterWithSession(req *types.RegisterRequest) (*sessio
 		return nil, err
 	}
 	return result, nil
+}
+
+func normalizeInviteCode(value string) (string, bool) {
+	code := strings.ToUpper(strings.TrimSpace(value))
+	return code, code != "" && len(code) <= 128
+}
+
+func consumeInviteCode(ctx context.Context, tx pgx.Tx, code, email string) error {
+	sum := sha256.Sum256([]byte(code))
+	var id string
+	err := tx.QueryRow(ctx, `
+		UPDATE invite_codes
+		SET used_count = used_count + 1, last_used_at = now()
+		WHERE code_hash = $1
+		  AND used_count < max_uses
+		  AND (expires_at IS NULL OR expires_at > now())
+		  AND (bound_email IS NULL OR lower(bound_email) = $2)
+		RETURNING id::text`,
+		hex.EncodeToString(sum[:]),
+		email,
+	).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return apperror.New(
+			"INVITE_CODE_INVALID",
+			"邀请码无效或已失效",
+			http.StatusForbidden,
+			nil,
+			nil,
+		)
+	}
+	return err
 }
