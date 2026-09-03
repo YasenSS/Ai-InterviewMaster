@@ -1,0 +1,353 @@
+name: Deploy Production
+
+on:
+  workflow_run:
+    workflows: ["Release Images"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      git_sha:
+        description: Full 40-character Git SHA whose images should be deployed
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy immutable images
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: production
+
+    env:
+      DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/interviewmaster' }}
+      DEPLOY_SSH_PORT: ${{ vars.DEPLOY_SSH_PORT || '22' }}
+
+    steps:
+      - name: Resolve immutable release SHA
+        id: release
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+          MANUAL_SHA: ${{ inputs.git_sha }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_run" ]]; then
+            target_sha="$RELEASE_SHA"
+          else
+            target_sha="$MANUAL_SHA"
+          fi
+          target_sha="${target_sha,,}"
+          if [[ ! "$target_sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Expected a full 40-character Git SHA; got '$target_sha'." >&2
+            exit 1
+          fi
+          echo "sha=$target_sha" >>"$GITHUB_OUTPUT"
+          echo "image_tag=sha-$target_sha" >>"$GITHUB_OUTPUT"
+
+      - name: Check out the release source
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.release.outputs.sha }}
+          fetch-depth: 0
+
+      - name: Verify release belongs to master
+        shell: bash
+        env:
+          TARGET_SHA: ${{ steps.release.outputs.sha }}
+        run: |
+          set -euo pipefail
+          git fetch origin master:refs/remotes/origin/master
+          if ! git merge-base --is-ancestor "$TARGET_SHA" refs/remotes/origin/master; then
+            echo "Refusing to deploy $TARGET_SHA because it is not reachable from master." >&2
+            exit 1
+          fi
+
+      - name: Log in to GHCR for image verification
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ github.token }}
+
+      - name: Verify all immutable images exist
+        shell: bash
+        env:
+          IMAGE_TAG: ${{ steps.release.outputs.image_tag }}
+        run: |
+          set -euo pipefail
+          for component in api worker web; do
+            docker buildx imagetools inspect \
+              "ghcr.io/yasenss/ai-interviewmaster-${component}:${IMAGE_TAG}" >/dev/null
+          done
+
+      - name: Configure verified SSH access
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          DEPLOY_SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          : "${DEPLOY_HOST:?Configure the production DEPLOY_HOST secret}"
+          : "${DEPLOY_USER:?Configure the production DEPLOY_USER secret}"
+          : "${DEPLOY_SSH_PRIVATE_KEY:?Configure the production DEPLOY_SSH_PRIVATE_KEY secret}"
+          : "${DEPLOY_SSH_KNOWN_HOSTS:?Configure the production DEPLOY_SSH_KNOWN_HOSTS secret}"
+
+          if [[ ! "$DEPLOY_HOST" =~ ^[A-Za-z0-9.:-]+$ ]]; then
+            echo "DEPLOY_HOST contains unsupported characters." >&2
+            exit 1
+          fi
+          if [[ ! "$DEPLOY_USER" =~ ^[A-Za-z_][A-Za-z0-9_-]*$ ]]; then
+            echo "DEPLOY_USER contains unsupported characters." >&2
+            exit 1
+          fi
+          if [[ ! "$DEPLOY_SSH_PORT" =~ ^[0-9]{1,5}$ ]] || ((DEPLOY_SSH_PORT < 1 || DEPLOY_SSH_PORT > 65535)); then
+            echo "DEPLOY_SSH_PORT must be between 1 and 65535." >&2
+            exit 1
+          fi
+          if [[ ! "$DEPLOY_PATH" =~ ^/[A-Za-z0-9._/-]+$ ]]; then
+            echo "DEPLOY_PATH must be an absolute path containing only safe path characters." >&2
+            exit 1
+          fi
+
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$DEPLOY_SSH_PRIVATE_KEY" >"$HOME/.ssh/deploy_key"
+          printf '%s\n' "$DEPLOY_SSH_KNOWN_HOSTS" >"$HOME/.ssh/deploy_known_hosts"
+          chmod 600 "$HOME/.ssh/deploy_key" "$HOME/.ssh/deploy_known_hosts"
+
+          {
+            echo "Host production"
+            echo "  HostName $DEPLOY_HOST"
+            echo "  User $DEPLOY_USER"
+            echo "  Port $DEPLOY_SSH_PORT"
+            echo "  IdentityFile $HOME/.ssh/deploy_key"
+            echo "  UserKnownHostsFile $HOME/.ssh/deploy_known_hosts"
+            echo "  IdentitiesOnly yes"
+            echo "  BatchMode yes"
+            echo "  StrictHostKeyChecking yes"
+          } >"$HOME/.ssh/config"
+          chmod 600 "$HOME/.ssh/config"
+
+          ssh production 'docker version >/dev/null && docker compose version >/dev/null && command -v flock >/dev/null'
+
+      - name: Upload deployment artifacts
+        shell: bash
+        env:
+          TARGET_SHA: ${{ steps.release.outputs.sha }}
+        run: |
+          set -euo pipefail
+          tar -czf "$RUNNER_TEMP/deployment-$TARGET_SHA.tar.gz" \
+            docker-compose.prod.yml backend/migrations
+          ssh production "install -d -m 700 '$DEPLOY_PATH/.incoming' '$DEPLOY_PATH/backups/postgres'"
+          scp "$RUNNER_TEMP/deployment-$TARGET_SHA.tar.gz" \
+            production:"$DEPLOY_PATH/.incoming/deployment-$TARGET_SHA.tar.gz"
+
+      - name: Authenticate the server to GHCR
+        shell: bash
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+          GHCR_USERNAME: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | \
+            ssh production "docker login ghcr.io --username '$GHCR_USERNAME' --password-stdin"
+
+      - name: Back up, migrate, deploy, probe and roll back on failure
+        shell: bash
+        timeout-minutes: 20
+        env:
+          IMAGE_TAG: ${{ steps.release.outputs.image_tag }}
+          TARGET_SHA: ${{ steps.release.outputs.sha }}
+        run: |
+          set -euo pipefail
+          ssh production \
+            "DEPLOY_PATH='$DEPLOY_PATH' IMAGE_TAG='$IMAGE_TAG' TARGET_SHA='$TARGET_SHA' bash -s" <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+
+          incoming="$DEPLOY_PATH/.incoming/$TARGET_SHA"
+          archive="$DEPLOY_PATH/.incoming/deployment-$TARGET_SHA.tar.gz"
+          current_compose="$DEPLOY_PATH/docker-compose.prod.yml"
+          current_release="$DEPLOY_PATH/.release.env"
+          production_env="$DEPLOY_PATH/.env.production"
+          next_compose="$incoming/docker-compose.prod.yml"
+          next_release="$incoming/.release.env"
+          rollback_compose="$incoming/rollback-compose.yml"
+          rollback_release="$incoming/rollback-release.env"
+          backup_dir="$DEPLOY_PATH/backups/postgres"
+          backup_file=""
+          activated=false
+          previous_stopped=false
+          has_previous=false
+
+          log() { printf '[deploy] %s\n' "$*"; }
+
+          mkdir -p "$incoming" "$backup_dir"
+          exec 9>"$DEPLOY_PATH/.deploy.lock"
+          flock -n 9 || { echo "Another deployment is running." >&2; exit 1; }
+          [[ -s "$production_env" ]] || { echo "$production_env is missing." >&2; exit 1; }
+          tar -xzf "$archive" -C "$incoming"
+          printf 'IM_IMAGE_TAG=%s\n' "$IMAGE_TAG" >"$next_release"
+
+          next_dc() {
+            docker compose --env-file "$production_env" --env-file "$next_release" \
+              -f "$next_compose" "$@"
+          }
+          current_dc() {
+            docker compose --env-file "$production_env" --env-file "$current_release" \
+              -f "$current_compose" "$@"
+          }
+          probe() {
+            current_dc exec -T web node -e '
+              (async () => {
+                for (const path of ["/api/v1/health", "/api/v1/ready"]) {
+                  const response = await fetch("http://127.0.0.1:3000" + path);
+                  if (!response.ok) throw new Error(path + " returned " + response.status);
+                  const body = await response.json();
+                  if (body.status !== "ok") throw new Error(path + " is not ready");
+                }
+              })().catch(error => { console.error(error.message); process.exit(1); });
+            '
+          }
+          wait_for_probes() {
+            for _ in $(seq 1 30); do
+              probe >/dev/null 2>&1 && return 0
+              sleep 5
+            done
+            return 1
+          }
+          rollback() {
+            trap - ERR
+            set +e
+            if [[ "$has_previous" == true ]]; then
+              log "Health check failed; restoring previous Compose and image SHA."
+              cp "$rollback_compose" "$current_compose"
+              cp "$rollback_release" "$current_release"
+              current_dc pull api worker web
+              current_dc up -d --force-recreate api worker web
+              wait_for_probes && log "Previous application version is healthy again."
+            else
+              log "No previous release exists; stopping failed application containers."
+              current_dc stop api worker web
+            fi
+            log "Database was not rolled back automatically. Backup: $backup_file"
+          }
+          on_error() {
+            status=$?
+            trap - ERR
+            set +e
+            if [[ "$activated" == true ]]; then
+              rollback
+            elif [[ "$previous_stopped" == true ]]; then
+              log "Deployment failed before activation; restarting previous application."
+              current_dc up -d api worker web
+              log "Database was not rolled back automatically. Backup: $backup_file"
+            fi
+            exit "$status"
+          }
+          trap on_error ERR
+
+          next_dc config --quiet
+          if [[ -s "$current_compose" && ! -s "$current_release" ]]; then
+            echo "Existing deployment has no .release.env; add its IM_IMAGE_TAG before using automatic rollback." >&2
+            exit 1
+          fi
+          if [[ -s "$current_compose" && -s "$current_release" ]]; then
+            cp "$current_compose" "$rollback_compose"
+            cp "$current_release" "$rollback_release"
+            has_previous=true
+          fi
+
+          log "Pulling $IMAGE_TAG."
+          next_dc pull api worker web
+          next_dc up -d postgres redis minio tika
+
+          for _ in $(seq 1 30); do
+            next_dc exec -T postgres sh -ec \
+              'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >/dev/null 2>&1 && break
+            sleep 2
+          done
+          next_dc exec -T postgres sh -ec \
+            'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >/dev/null
+
+          if [[ "$has_previous" == true ]]; then
+            log "Stopping API and Worker while backing up and migrating."
+            current_dc stop worker api
+            previous_stopped=true
+          fi
+
+          timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          backup_file="$backup_dir/$timestamp-before-$IMAGE_TAG.dump"
+          log "Backing up PostgreSQL to $backup_file."
+          next_dc exec -T postgres sh -ec \
+            'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom' >"$backup_file.tmp"
+          [[ -s "$backup_file.tmp" ]]
+          mv "$backup_file.tmp" "$backup_file"
+
+          log "Running Goose migrations from the checked-out release."
+          docker run --rm --pull=missing \
+            --network interviewmaster_backend \
+            --env-file "$production_env" \
+            -e GOOSE_DRIVER=postgres \
+            -e GOOSE_MIGRATION_DIR=/migrations \
+            -e NO_COLOR=true \
+            -v "$incoming/backend/migrations:/migrations:ro" \
+            -v interviewmaster-go-mod-cache:/go/pkg/mod \
+            golang:1.26.5-bookworm \
+            sh -euc '
+              export GOOSE_DBSTRING="postgres://${POSTGRES_USER:-interviewmaster}:${POSTGRES_PASSWORD:?missing POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-interviewmaster}?sslmode=disable"
+              go run github.com/pressly/goose/v3/cmd/goose@v3.27.1 status
+              go run github.com/pressly/goose/v3/cmd/goose@v3.27.1 up
+            '
+
+          install -m 600 "$next_compose" "$current_compose"
+          install -m 600 "$next_release" "$current_release"
+          activated=true
+          current_dc up -d api worker web
+
+          log "Checking /api/v1/health and /api/v1/ready."
+          if ! wait_for_probes; then
+            current_dc ps
+            current_dc logs --tail 100 api worker web
+            false
+          fi
+
+          printf '%s\n' "$TARGET_SHA" >"$DEPLOY_PATH/.last-successful-sha"
+          log "Deployment succeeded: $IMAGE_TAG"
+          log "Database backup: $backup_file"
+          REMOTE
+
+      - name: Remove the short-lived GHCR credential from the server
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: ssh production 'docker logout ghcr.io >/dev/null 2>&1 || true'
+
+      - name: Record deployment summary
+        if: success()
+        shell: bash
+        env:
+          TARGET_SHA: ${{ steps.release.outputs.sha }}
+          IMAGE_TAG: ${{ steps.release.outputs.image_tag }}
+        run: |
+          {
+            echo "## Production deployment succeeded"
+            echo
+            echo "- Commit: \`$TARGET_SHA\`"
+            echo "- Image tag: \`$IMAGE_TAG\`"
+            echo "- Host: configured production server"
+          } >>"$GITHUB_STEP_SUMMARY"
