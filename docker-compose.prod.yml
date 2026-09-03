@@ -1,0 +1,216 @@
+name: interviewmaster
+
+# Production deployment for a single Linux/amd64 server.
+# Supply variables with: docker compose --env-file .env.production -f docker-compose.prod.yml ...
+# Run database migrations before starting api and worker.
+
+x-app-environment: &app-environment
+  IM_ENV: production
+  IM_DATABASE_URL: "postgres://${POSTGRES_USER:-interviewmaster}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-interviewmaster}?sslmode=disable"
+  IM_REDIS_ADDR: redis:6379
+  IM_REDIS_PASSWORD: "${IM_REDIS_PASSWORD:?Set IM_REDIS_PASSWORD}"
+  IM_REDIS_DB: "${IM_REDIS_DB:-0}"
+  IM_S3_ENDPOINT: http://minio:9000
+  IM_S3_PUBLIC_ENDPOINT: "${IM_S3_PUBLIC_ENDPOINT:?Set IM_S3_PUBLIC_ENDPOINT to the public HTTPS object-storage URL}"
+  IM_S3_REGION: "${IM_S3_REGION:-us-east-1}"
+  IM_S3_BUCKET: "${IM_S3_BUCKET:-interviewmaster}"
+  IM_S3_ACCESS_KEY: "${IM_S3_ACCESS_KEY:?Set IM_S3_ACCESS_KEY}"
+  IM_S3_SECRET_KEY: "${IM_S3_SECRET_KEY:?Set IM_S3_SECRET_KEY}"
+  IM_S3_USE_PATH_STYLE: "${IM_S3_USE_PATH_STYLE:-true}"
+  IM_TIKA_URL: http://tika:9998
+  IM_ASR_URL: "${IM_ASR_URL:-http://asr:9000}"
+  IM_AI_ENABLED: "${IM_AI_ENABLED:-false}"
+  IM_AI_PROVIDER: "${IM_AI_PROVIDER:-openai-compatible}"
+  IM_AI_BASE_URL: "${IM_AI_BASE_URL:-https://api.openai.com/v1}"
+  IM_AI_API_KEY: "${IM_AI_API_KEY:-}"
+  IM_AI_CHAT_MODEL: "${IM_AI_CHAT_MODEL:-gpt-4.1-mini}"
+  IM_AI_SMALL_MODEL: "${IM_AI_SMALL_MODEL:-}"
+  IM_AI_EMBEDDING_MODEL: "${IM_AI_EMBEDDING_MODEL:-}"
+  IM_AI_REQUEST_TIMEOUT: "${IM_AI_REQUEST_TIMEOUT:-30s}"
+  IM_AI_MAX_OUTPUT_TOKENS: "${IM_AI_MAX_OUTPUT_TOKENS:-4096}"
+  IM_AI_STRUCTURED_OUTPUTS: "${IM_AI_STRUCTURED_OUTPUTS:-true}"
+  IM_AI_MAX_INPUT_RUNES: "${IM_AI_MAX_INPUT_RUNES:-50000}"
+  IM_AI_MAX_INFLIGHT: "${IM_AI_MAX_INFLIGHT:-2}"
+  IM_AI_DAILY_CALLS_SOFT: "${IM_AI_DAILY_CALLS_SOFT:-30}"
+  IM_AI_DAILY_CALLS_HARD: "${IM_AI_DAILY_CALLS_HARD:-50}"
+  IM_JWT_SIGNING_KEY: "${IM_JWT_SIGNING_KEY:?Set IM_JWT_SIGNING_KEY to at least 32 characters}"
+  IM_OTEL_ENABLED: "${IM_OTEL_ENABLED:-false}"
+  IM_OTEL_ENDPOINT: "${IM_OTEL_ENDPOINT:-localhost:4317}"
+  IM_OTEL_INSECURE: "${IM_OTEL_INSECURE:-false}"
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.5-pg18-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: "${POSTGRES_DB:-interviewmaster}"
+      POSTGRES_USER: "${POSTGRES_USER:-interviewmaster}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    stop_grace_period: 60s
+    logging: *default-logging
+
+  redis:
+    image: redis:8.8.0-alpine
+    restart: unless-stopped
+    environment:
+      IM_REDIS_PASSWORD: "${IM_REDIS_PASSWORD:?Set IM_REDIS_PASSWORD}"
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - "${IM_REDIS_PASSWORD:?Set IM_REDIS_PASSWORD}"
+    volumes:
+      - redis-data:/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$$IM_REDIS_PASSWORD redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    stop_grace_period: 30s
+    logging: *default-logging
+
+  minio:
+    image: minio/minio:RELEASE.2025-06-13T11-33-47Z
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: "${MINIO_ROOT_USER:?Set MINIO_ROOT_USER}"
+      MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD}"
+    ports:
+      - "${IM_BIND_ADDRESS:-127.0.0.1}:${MINIO_API_PORT:-9000}:9000"
+    volumes:
+      - minio-data:/data
+    networks:
+      - backend
+    stop_grace_period: 30s
+    logging: *default-logging
+
+  tika:
+    image: apache/tika:3.2.3.0-full
+    restart: unless-stopped
+    networks:
+      - backend
+    stop_grace_period: 30s
+    logging: *default-logging
+
+  asr:
+    profiles: ["beta"]
+    image: "${IM_ASR_IMAGE:-onerahmet/openai-whisper-asr-webservice:latest}"
+    restart: unless-stopped
+    environment:
+      ASR_MODEL: "${ASR_MODEL:-base}"
+      ASR_ENGINE: openai_whisper
+    networks:
+      - backend
+    stop_grace_period: 60s
+    logging: *default-logging
+
+  api:
+    image: "ghcr.io/yasenss/ai-interviewmaster-api:${IM_IMAGE_TAG:?Set IM_IMAGE_TAG, for example 0.1.0}"
+    platform: linux/amd64
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      <<: *app-environment
+      IM_API_PORT: "8080"
+      IM_WEB_ORIGIN: "${IM_WEB_ORIGIN:?Set IM_WEB_ORIGIN to the public HTTPS web URL}"
+    expose:
+      - "8080"
+    networks:
+      - frontend
+      - backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      tika:
+        condition: service_started
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+    logging: *default-logging
+
+  worker:
+    image: "ghcr.io/yasenss/ai-interviewmaster-worker:${IM_IMAGE_TAG:?Set IM_IMAGE_TAG, for example 0.1.0}"
+    platform: linux/amd64
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      <<: *app-environment
+    networks:
+      - backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      tika:
+        condition: service_started
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 45s
+    logging: *default-logging
+
+  web:
+    image: "ghcr.io/yasenss/ai-interviewmaster-web:${IM_IMAGE_TAG:?Set IM_IMAGE_TAG, for example 0.1.0}"
+    platform: linux/amd64
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      API_INTERNAL_BASE_URL: http://api:8080
+    ports:
+      - "${IM_BIND_ADDRESS:-127.0.0.1}:${IM_WEB_PORT:-3000}:3000"
+    networks:
+      - frontend
+    depends_on:
+      api:
+        condition: service_started
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3000/api/v1/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    init: true
+    stop_grace_period: 30s
+    logging: *default-logging
+
+networks:
+  frontend:
+  backend:
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:
